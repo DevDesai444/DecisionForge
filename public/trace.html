@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DecisionForge — task trajectory replay</title>
+<link rel="icon" href="assets/decisionforge-icon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --line:#262d36; --text:#e6edf3; --dim:#8b949e;
+          --gold:#f0b429; --accent:#4f8ff7; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif; }
+  header { padding:24px 5vw 10px; }
+  h1 { margin:0 0 6px; font-size:24px; } h1 .tag { color:var(--accent); }
+  header p { margin:0 0 8px; color:var(--dim); max-width:80ch; }
+  header p a { color:var(--accent); text-decoration:none; margin-right:10px; }
+  .live-badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:12px;
+                border:1px solid var(--line); color:var(--dim); margin-left:8px; }
+  .live-badge.on { color:var(--ok); border-color:var(--ok); }
+  main { padding:10px 5vw 60px; display:grid; gap:16px; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  select, button { background:var(--panel); color:var(--text); border:1px solid var(--line);
+                   border-radius:8px; padding:7px 12px; font-size:14px; cursor:pointer; }
+  button.primary { border-color:var(--accent); }
+  .grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .site { color:var(--dim); font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; }
+  .task { margin:4px 0 12px; font-size:16px; }
+  .page { display:flex; flex-direction:column; gap:8px; min-height:200px; }
+  .el { display:grid; grid-template-columns: 1fr 120px 46px; gap:10px; align-items:center;
+        border:1px solid var(--line); border-radius:10px; padding:9px 12px; background:#10141a; }
+  .el.gold { border-color:var(--gold); }
+  .el.chosen { outline:2px solid var(--accent); }
+  .el .desc { font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .el .eid { color:var(--dim); margin-right:6px; font-size:12px; }
+  .el.gold .eid { color:var(--gold); }
+  .track { height:10px; background:#0b0e13; border-radius:5px; overflow:hidden; }
+  .fill { height:100%; background:var(--accent); border-radius:5px; }
+  .el.chosen .fill { background:var(--accent); }
+  .el.gold .fill { background:var(--gold); }
+  .p { font-variant-numeric:tabular-nums; font-size:12px; color:var(--dim); text-align:right; }
+  .verdict { margin-top:10px; font-size:14px; }
+  .verdict.ok { color:var(--ok); } .verdict.bad { color:var(--bad); }
+  .log { display:flex; flex-direction:column; gap:8px; }
+  .step-row { display:grid; grid-template-columns: 34px 1fr auto; gap:10px; align-items:center;
+              border:1px solid var(--line); border-radius:10px; padding:8px 10px; cursor:pointer; }
+  .step-row.active { border-color:var(--accent); }
+  .step-row .n { color:var(--dim); }
+  .step-row .pick { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .step-row .mark { font-size:13px; }
+  footer { padding:10px 5vw 40px; color:var(--dim); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jev<span class="tag">Forge</span> · watch it operate <span class="live-badge" id="liveBadge">replay</span></h1>
+  <p>Multi-step Mind2Web tasks, replayed step by step: the page's elements, DecisionForge's complete
+     probability distribution, its pick, and whether it matched the human-annotated target —
+     then it moves to the next page. Gold outline = human target; blue outline = model pick.</p>
+  <p><a href="index.html">decision demo</a> <a href="index.html">autopilot demo</a>
+     <a href="decisions.html">side-by-side decisions</a> <a href="training_curves.html">training dashboard</a>
+     <a href="https://huggingface.co/AndeyTait/DecisionForge-0.8B">weights</a></p>
+</header>
+<main>
+  <div class="controls">
+    <label>task <select id="trajectory"></select></label>
+    <button id="prev">◀ step</button>
+    <button id="play" class="primary">▶ play</button>
+    <button id="next">step ▶</button>
+    <span id="counter" style="color:var(--dim)"></span>
+  </div>
+  <div class="grid">
+    <div class="card" id="pageCard">
+      <div class="site" id="site"></div>
+      <div class="task" id="task"></div>
+      <div class="page" id="page"></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="card">
+      <div class="site">trace</div>
+      <div class="task" id="traceTitle"></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</main>
+<footer>Static replay of recorded model outputs. Add <code>?live=1</code> to query a local
+<code>decisionforge.serve</code> instance (start it with <code>--allow-cors</code>) for live inference
+of the current step. Data: Mind2Web (OSU NLP; axtree cleaning by LangAGI-Lab).</footer>
+<script>
+let data=null, ti=0, si=0, playing=null;
+const $=id=>document.getElementById(id);
+const PARAMS=new URLSearchParams(location.search);
+const LIVE=PARAMS.has("live");
+const API=PARAMS.get("api")||"http://127.0.0.1:8123/v1/systemone";
+
+async function boot(){
+  data=await (await fetch("trace_data.json")).json();
+  if(LIVE){ $("liveBadge").textContent="live"; $("liveBadge").classList.add("on"); }
+  const sel=$("trajectory");
+  data.trajectories.forEach((t,i)=>sel.add(new Option(`${t.website} · ${t.steps.length} steps (${t.split})`,i)));
+  sel.onchange=()=>{ti=+sel.value;si=0;stop();render();};
+  $("prev").onclick=()=>{stop();si=Math.max(0,si-1);render();};
+  $("next").onclick=()=>{stop();advance();};
+  $("play").onclick=togglePlay;
+  ti=0;render();
+}
+function advance(){ if(si<steps().length-1){si++;render();} else stop(); }
+function togglePlay(){ if(playing){stop();} else {$("play").textContent="⏸ pause"; playing=setInterval(advance,1400);} }
+function stop(){ if(playing){clearInterval(playing);playing=null;} $("play").textContent="▶ play"; }
+function traj(){return data.trajectories[ti];}
+function steps(){return traj().steps;}
+async function render(){
+  const t=traj(), step=steps()[si];
+  $("site").textContent=`${t.website} · ${t.split} · step ${si+1}/${steps().length}`;
+  $("task").textContent=t.task;
+  $("traceTitle").textContent=`${steps().length} steps, ${steps().filter(s=>s.correct).length} on-target`;
+  let probs=step.probabilities, chosen=step.chosen, confidence=step.confidence,
+      correct=step.correct, latency=null, liveError=null;
+  if(LIVE){
+    try{
+      const state=JSON.stringify({task:t.task, elements:step.elements});
+      const res=await fetch(API,{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({state, questions:{next:{type:"choice",
+          instructions:"Which page element should be interacted with next to make progress on the task?",
+          criteria:Object.fromEntries(step.elements.map(e=>[e.id,e.text]))}}})});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j=await res.json(), answer=j.answers.next;
+      probs=answer.probabilities; chosen=answer.choice;
+      confidence=answer.confidence; correct=step.gold.includes(chosen);
+      latency=j.latency_ms;
+    }catch(e){ liveError=e; }
+  }
+  const page=$("page"); page.innerHTML="";
+  const maxP=Math.max(...step.elements.map(e=>probs[e.id]||0),1e-9);
+  for(const e of step.elements){
+    const p=probs[e.id]||0;
+    const div=document.createElement("div");
+    div.className="el"+(step.gold.includes(e.id)?" gold":"")+(e.id===chosen?" chosen":"");
+    div.innerHTML=`<span class="desc"><span class="eid">${e.id}</span>${e.text}</span>
+      <span class="track"><span class="fill" style="width:${(p/maxP*100).toFixed(1)}%"></span></span>
+      <span class="p">${(p*100).toFixed(1)}%</span>`;
+    page.appendChild(div);
+  }
+  const v=$("verdict");
+  if(liveError){
+    v.className="verdict bad";
+    v.textContent=`Live API unavailable (${liveError.message}); showing the saved replay.`;
+  }else{
+    v.className="verdict "+(correct?"ok":"bad");
+    v.textContent=(correct?"✓ model pick matches the human target":"✗ model picked a different element")
+      +` · confidence ${(confidence*100).toFixed(0)}%`
+      +(latency===null?"":` · live ${latency.toFixed(1)} ms`)
+      +` · human did: ${step.human_action||step.operation}`;
+  }
+  const log=$("log"); log.innerHTML="";
+  steps().forEach((s,i)=>{
+    const row=document.createElement("div");
+    row.className="step-row"+(i===si?" active":"");
+    row.innerHTML=`<span class="n">${i+1}</span>
+      <span class="pick">${s.chosen} · ${s.correct?"on target":"missed"}</span>
+      <span class="mark" style="color:${s.correct?"var(--ok)":"var(--bad)"}">${s.correct?"✓":"✗"}</span>`;
+    row.onclick=()=>{stop();si=i;render();};
+    log.appendChild(row);
+  });
+  $("counter").textContent=`trajectory ${ti+1}/${data.trajectories.length} · on-target ${steps().filter(s=>s.correct).length}/${steps().length}`;
+}
+boot();
+</script>
+</body>
+</html>

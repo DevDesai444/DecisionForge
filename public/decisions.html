@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DecisionForge — side-by-side decisions</title>
+<link rel="icon" href="assets/decisionforge-icon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --line:#262d36; --text:#e6edf3; --dim:#8b949e;
+          --gold:#f0b429; --accent:#4f8ff7; --jev:#f0b429; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 ui-sans-serif,system-ui,"PingFang SC","Microsoft YaHei",sans-serif; }
+  header { padding:24px 5vw 10px; }
+  h1 { margin:0 0 6px; font-size:22px; } h1 .tag { color:var(--accent); }
+  header p { margin:0 0 6px; color:var(--dim); max-width:86ch; }
+  header p a { color:var(--accent); text-decoration:none; margin-right:10px; }
+  main { padding:8px 5vw 60px; display:grid; gap:16px; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  select, button { background:var(--panel); color:var(--text); border:1px solid var(--line);
+                   border-radius:8px; padding:7px 12px; font-size:14px; cursor:pointer; }
+  button.primary { border-color:var(--accent); }
+  .armchips { display:flex; gap:8px; flex-wrap:wrap; }
+  .armchip { display:flex; gap:7px; align-items:center; border:1px solid var(--line);
+             border-radius:16px; padding:5px 13px; cursor:pointer; font-size:13px; color:var(--dim); }
+  .armchip i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .armchip.active { color:var(--text); border-color:currentColor; background:#10141a; }
+  .card { position:relative; background:var(--panel); border:1px solid var(--line);
+          border-radius:12px; padding:16px 18px; }
+  .card .site { color:var(--dim); font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; }
+  .card .task { margin:4px 0 12px; font-size:16px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 8px; border-top:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:500; font-size:12.5px; border-top:none; }
+  td.cand { width:32%; }
+  .gold .cand-id { color:var(--gold); font-weight:600; }
+  .cand-id { color:var(--dim); margin-right:6px; }
+  .bars { display:grid; gap:5px; }
+  .arm { display:grid; grid-template-columns:130px 1fr 48px; align-items:center; gap:8px; }
+  .arm .name { color:var(--dim); font-size:12.5px; }
+  .arm.active-arm .name { color:var(--text); font-weight:600; }
+  .track { height:11px; background:#0b0e13; border-radius:6px; overflow:hidden; }
+  .arm.active-arm .track { height:13px; }
+  .fill { height:100%; border-radius:6px; }
+  .arm.win .fill { background:var(--ok); } .arm.lose .fill { background:var(--bad); }
+  .arm .p { font-variant-numeric:tabular-nums; font-size:12px; color:var(--dim); }
+  tr.pick-row td { background:#10141a; }
+  tr.oj-clicked td { background:#15202e; }
+  .tally { margin-top:10px; color:var(--dim); font-size:13px; }
+  .tally b { color:var(--text); }
+  .verdict { margin-top:8px; font-size:13.5px; }
+  .verdict.ok { color:var(--ok); } .verdict.bad { color:var(--bad); }
+  footer { padding:10px 5vw 40px; color:var(--dim); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Jev<span class="tag">Forge</span> — side-by-side decisions</h1>
+  <p>48 held-out Mind2Web samples (24 test + 24 ood websites the model never trained on). All arms
+     overlay on every candidate; the <b>active arm</b> drives the cursor — it glides to that arm's
+     pick and clicks it. Amber candidate id = the human-annotated correct target.</p>
+  <p><a href="index.html">autopilot demo</a> <a href="trace.html">trace player</a>
+     <a href="training_curves.html">training dashboard</a> <a href="bench_chart.svg">benchmark chart</a></p>
+</header>
+<main>
+  <div class="controls">
+    <label>split <select id="split"></select></label>
+    <label>sample <select id="sample"></select></label>
+    <button id="shuffle">shuffle</button>
+    <button id="play" class="primary">▶ play</button>
+    <span id="meta" style="color:var(--dim)"></span>
+  </div>
+  <div class="armchips" id="armchips"></div>
+  <div class="card" id="card">
+    <div class="site" id="site"></div>
+    <div class="task" id="task"></div>
+    <table id="table"><tr><th>candidate</th><th>arm distributions (overlay)</th></tr></table>
+    <div class="verdict" id="verdict"></div>
+    <div class="tally" id="tally"></div>
+    <div id="cursor"><span class="oj-cursor-inner">🖱️</span></div>
+  </div>
+</main>
+<footer>Static replay: DecisionForge bars come from recorded checkpoint predictions; the Jev-1.13
+distributions were fetched live per sample via a hosted decisions API. Data: Mind2Web
+(OSU NLP; axtree cleaning by LangAGI-Lab).</footer>
+<script src="cursor.js"></script>
+<script>
+let data=null, split=null, idx=0, order=[], activeArm=null, playing=null;
+const ARMS=[["decisionforge","DecisionForge 0.8B","#4f8ff7"],["jev","Jev-1.13","#f0b429"],["uniform","uniform","#566270"]];
+const $=id=>document.getElementById(id);
+let CURSOR=null;
+
+async function boot(){
+  data=await (await fetch("demo_data.json")).json();
+  CURSOR=OJCursor($("card"), $("cursor"));
+  const splitSel=$("split");
+  Object.keys(data.samples).forEach(s=>splitSel.add(new Option(s,s)));
+  splitSel.onchange=()=>{ split=splitSel.value; order=[...data.samples[split].keys()];
+    idx=0; CURSOR.reset(); fillSamples(); render(); };
+  $("sample").onchange=()=>{ stop(); idx=+$("sample").value; render(); };
+  $("shuffle").onclick=()=>{ stop(); shuffle(order); idx=0; fillSamples(); render(); };
+  $("play").onclick=()=>{ if(playing){stop();} else {$("play").textContent="⏸ pause"; queue(200);} };
+  const chips=$("armchips");
+  ARMS.forEach(([id,label,color])=>{
+    const chip=document.createElement("div");
+    chip.className="armchip"+(id==="decisionforge"?" active":"");
+    chip.innerHTML=`<i style="background:${color}"></i>${label}`;
+    chip.onclick=()=>{ activeArm=id;
+      chips.querySelectorAll(".armchip").forEach(c=>c.classList.remove("active"));
+      chip.classList.add("active"); render(400); };
+    chips.appendChild(chip);
+  });
+  activeArm="decisionforge";
+  split=Object.keys(data.samples)[0]; order=[...data.samples[split].keys()]; idx=0;
+  fillSamples(); render();
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+function fillSamples(){
+  const sel=$("sample"); sel.innerHTML="";
+  order.forEach((_,i)=>sel.add(new Option(`#${i+1}`,i)));
+  sel.value=idx;
+}
+function stop(){ if(playing){clearTimeout(playing);playing=null;} $("play").textContent="▶ play"; }
+function queue(delay){ playing=setTimeout(()=>{ if(idx<order.length-1){idx++;fillSamples();render();} else stop(); }, delay); }
+function topOf(dist){ return Object.entries(dist).sort((a,b)=>b[1]-a[1])[0]; }
+
+async function render(glideDur=650){
+  const card=data.samples[split][order[idx]];
+  const table=$("table");
+  $("site").textContent=`${card.website} · ${card.split} · ${card.question_type}`;
+  $("task").textContent=card.task;
+  const rows=card.candidates.map(c=>{
+    const bars=ARMS.filter(([id])=>card.probabilities[id]).map(([id,label,color])=>{
+      const p=card.probabilities[id][c.id]??0;
+      const cls=(id==="uniform")?"":(card.gold.includes(topOf(card.probabilities[id])[0])?"win":"lose");
+      return `<div class="arm ${cls}${id===activeArm?" active-arm":""}">
+        <span class="name">${label}</span>
+        <span class="track"><span class="fill" style="width:${Math.min(100,p*100).toFixed(1)}%;background:${id===activeArm?color:(color+"99")}"></span></span>
+        <span class="p">${(p*100).toFixed(1)}%</span></div>`;
+    }).join("");
+    return `<tr data-cid="${c.id}" class="${card.gold.includes(c.id)?"gold":""}">
+      <td class="cand"><span class="cand-id">${c.id}</span>${c.text}</td>
+      <td><div class="bars">${bars}</div></td></tr>`;
+  }).join("");
+  table.innerHTML=`<tr><th>candidate</th><th>arm distributions (overlay)</th></tr>`+rows;
+
+  const activeTop=topOf(card.probabilities[activeArm]||card.probabilities.decisionforge);
+  table.querySelectorAll("tr").forEach(tr=>{ if(tr.dataset.cid===activeTop[0]) tr.classList.add("pick-row"); });
+  const hit=card.gold.includes(activeTop[0]);
+  const v=$("verdict"); v.className="verdict "+(hit?"ok":"bad");
+  v.textContent=(hit?"✓ ":"✗ ")+activeTop[0]+" is the active arm's pick"
+    +(hit?" — matches the human target":" — differs from the human target "+card.gold.join("/"));
+
+  const jfH=countHits(split,"decisionforge"), jvH=countHits(split,"jev"), n=data.samples[split].length;
+  $("tally").innerHTML=`running tally on these ${n} ${split} samples:
+    <b>DecisionForge 0.8B ${jfH}/${n}</b> · Jev-1.13 ${jvH}/${n} · uniform ≈ ${(n*card.candidates.filter(c=>card.gold.includes(c.id)).length/card.candidates.length).toFixed(1)}`;
+
+  const target=table.querySelector(`tr[data-cid="${activeTop[0]}"] td`);
+  if(target){
+    await CURSOR.glideToElement(target, glideDur);
+    CURSOR.press(table.querySelector(`tr[data-cid="${activeTop[0]}"]`));
+  }
+  if(playing) queue(900);
+}
+function countHits(sp,arm){
+  return data.samples[sp].filter(s=>s.gold.includes(topOf(s.probabilities[arm])[0])).length;
+}
+boot();
+</script>
+</body>
+</html>

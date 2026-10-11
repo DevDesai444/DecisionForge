@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 360" role="img" aria-labelledby="title desc">
+  <title id="title">DecisionForge candidate scoring flow</title>
+  <desc id="desc">A shared page state and question are paired with candidate paths, pooled at the last valid token, scored by one shared head, and normalized within each question.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1e293b" stroke-width="0.6"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0 0L10 4L0 8Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0 0L10 4L0 8Z" fill="#60a5fa"/>
+    </marker>
+    <style>
+      text{font-family:'JetBrains Mono','SFMono-Regular','Noto Sans SC','PingFang SC',monospace}
+      .name{fill:#f8fafc;font-size:15px;font-weight:700;text-anchor:middle}
+      .sub{fill:#94a3b8;font-size:11px;text-anchor:middle}
+      .tag{fill:#93c5fd;font-size:10px;font-weight:600;text-anchor:middle}
+      .step{fill:#64748b;font-size:10px;font-weight:700;letter-spacing:1px}
+    </style>
+  </defs>
+
+  <rect width="1120" height="360" rx="18" fill="#0f172a"/>
+  <rect width="1120" height="360" rx="18" fill="url(#grid)"/>
+
+  <text x="36" y="42" fill="#f8fafc" font-size="18" font-weight="700">One pass from candidates to probabilities</text>
+  <text x="36" y="65" fill="#94a3b8" font-size="11">DecisionForge decision path · K candidates compete inside one question</text>
+
+  <rect x="24" y="92" width="1072" height="214" rx="14" fill="none" stroke="#334155" stroke-dasharray="8 5"/>
+  <text x="42" y="115" class="step">JEV /V1/SYSTEMONE</text>
+
+  <path d="M222 202H270" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M470 202H518" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M718 202H766" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M966 202H1014" fill="none" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrowBlue)"/>
+
+  <g>
+    <rect x="42" y="153" width="180" height="98" rx="10" fill="#0f172a"/>
+    <rect x="42" y="153" width="180" height="98" rx="10" fill="rgba(8,51,68,.45)" stroke="#22d3ee" stroke-width="1.5"/>
+    <text x="132" y="183" class="name">Request</text>
+    <text x="132" y="205" class="sub">page state + question</text>
+    <text x="132" y="224" class="sub">K candidate paths</text>
+  </g>
+
+  <g>
+    <rect x="270" y="153" width="200" height="98" rx="10" fill="#0f172a"/>
+    <rect x="270" y="153" width="200" height="98" rx="10" fill="rgba(30,41,59,.72)" stroke="#94a3b8" stroke-width="1.5"/>
+    <text x="370" y="183" class="name">Candidate rows</text>
+    <text x="370" y="205" class="sub">shared context</text>
+    <text x="370" y="224" class="sub">+ one path per row</text>
+  </g>
+
+  <g>
+    <rect x="518" y="143" width="200" height="118" rx="10" fill="#0f172a"/>
+    <rect x="518" y="143" width="200" height="118" rx="10" fill="rgba(76,29,149,.42)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="618" y="178" class="name">Position pooling</text>
+    <text x="618" y="200" class="sub">last valid token per row</text>
+    <rect x="552" y="217" width="132" height="24" rx="12" fill="rgba(59,130,246,.30)" stroke="#60a5fa"/>
+    <text x="618" y="233" class="tag">one candidate vector</text>
+  </g>
+
+  <g>
+    <rect x="766" y="153" width="200" height="98" rx="10" fill="#0f172a"/>
+    <rect x="766" y="153" width="200" height="98" rx="10" fill="rgba(6,78,59,.42)" stroke="#34d399" stroke-width="1.5"/>
+    <text x="866" y="183" class="name">Shared score head</text>
+    <text x="866" y="205" class="sub">same MLP for every path</text>
+    <text x="866" y="224" class="sub">one comparable scalar</text>
+  </g>
+
+  <g>
+    <rect x="1014" y="153" width="64" height="98" rx="10" fill="#0f172a"/>
+    <rect x="1014" y="153" width="64" height="98" rx="10" fill="rgba(59,130,246,.34)" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="1046" y="189" class="name" font-size="13">p₁</text>
+    <text x="1046" y="209" class="name" font-size="13">…</text>
+    <text x="1046" y="229" class="name" font-size="13">pₖ</text>
+  </g>
+
+  <text x="42" y="334" fill="#64748b" font-size="10">choice · score · noul</text>
+  <text x="1078" y="334" fill="#64748b" font-size="10" text-anchor="end">no token decoding</text>
+</svg>

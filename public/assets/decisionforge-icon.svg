@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">DecisionForge icon</title>
+  <desc id="desc">A blue decision diamond splitting into three scored candidate paths.</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17396f"/><stop offset="1" stop-color="#0a1224"/>
+    </linearGradient>
+    <linearGradient id="core" x1="22" y1="18" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67e8f9"/><stop offset="1" stop-color="#4f8ff7"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="16" fill="url(#bg)" stroke="#315991" stroke-width="2"/>
+  <path d="M32 13L45 26L32 39L19 26Z" fill="url(#core)"/>
+  <circle cx="32" cy="26" r="4" fill="#07101f"/>
+  <path d="M32 39V45M32 45H17V50M32 45V52M32 45H47V50" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="17" cy="52" r="4" fill="#94a3b8"/>
+  <circle cx="32" cy="54" r="5" fill="#34d399"/>
+  <circle cx="47" cy="52" r="4" fill="#94a3b8"/>
+</svg>

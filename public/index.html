@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DecisionForge — decision tooling for web interaction</title>
+<link rel="icon" href="assets/decisionforge-icon.svg" type="image/svg+xml">
+<meta name="description" content="DecisionForge unifies data synthesis, training, evaluation and Jev-compatible inference for decisions inside web interactions.">
+<style>
+/* ================= design tokens ================= */
+:root{
+  --bg:#0a0e14; --bg2:#0d1219; --panel:#121826; --panel2:#161d2b; --line:#1f2836; --line2:#2a3446;
+  --text:#e8eef6; --dim:#93a0b4; --faint:#5d6a7e;
+  --brand:#4f8ff7; --brand2:#37c6ff; --violet:#8b7cff;
+  --green:#3fd97c; --amber:#f0b429; --red:#f85149; --gray:#8b949e;
+  --jf:linear-gradient(90deg,#4f8ff7,#37c6ff);
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+  --site-bg:#f6f7f9; --site-text:#1f2328; --site-dim:#57606a; --site-line:#e2e6ea; --site-brand:#0b5fff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI","PingFang SC",sans-serif;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+::selection{background:rgba(79,143,247,.35)}
+a{color:var(--brand2);text-decoration:none}
+a:hover{text-decoration:underline}
+code,pre{font-family:var(--mono)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+/* ================= aurora background ================= */
+.aurora{position:fixed;inset:0;z-index:-2;overflow:hidden;background:
+  radial-gradient(1100px 620px at 82% -8%,rgba(139,124,255,.16),transparent 60%),
+  radial-gradient(900px 560px at 8% 4%,rgba(79,143,247,.20),transparent 62%),
+  radial-gradient(1000px 700px at 50% 108%,rgba(55,198,255,.10),transparent 60%),var(--bg)}
+.aurora i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;will-change:transform}
+.aurora i:nth-child(1){width:520px;height:520px;left:-140px;top:-120px;background:#1c3a6e;animation:drift1 26s ease-in-out infinite alternate}
+.aurora i:nth-child(2){width:460px;height:460px;right:-120px;top:6%;background:#33246e;animation:drift2 31s ease-in-out infinite alternate}
+.aurora i:nth-child(3){width:420px;height:420px;left:36%;bottom:-220px;background:#123a4e;animation:drift1 38s ease-in-out infinite alternate-reverse}
+@keyframes drift1{from{transform:translate(0,0) scale(1)}to{transform:translate(70px,50px) scale(1.12)}}
+@keyframes drift2{from{transform:translate(0,0) scale(1.05)}to{transform:translate(-60px,60px) scale(.94)}}
+.gridlines{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;background-image:
+  linear-gradient(rgba(147,160,180,.045) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(147,160,180,.045) 1px,transparent 1px);background-size:56px 56px;
+  mask-image:radial-gradient(900px 500px at 50% 0%,#000 0%,transparent 78%)}
+
+/* ================= sticky nav ================= */
+.topnav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(10,14,20,.72);border-bottom:1px solid rgba(31,40,54,.9)}
+.topnav .wrap{display:flex;align-items:center;gap:22px;height:60px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+.logo .mark{width:26px;height:26px;border-radius:8px;background:conic-gradient(from 210deg,#4f8ff7,#37c6ff,#8b7cff,#4f8ff7);
+  display:grid;place-items:center;font-size:14px;box-shadow:0 0 18px rgba(79,143,247,.5)}
+.logo b{background:linear-gradient(92deg,#dbe9ff,#8fbcff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.navlinks{display:flex;gap:4px;margin-left:8px}
+.navlinks a{color:var(--dim);font-size:14px;padding:7px 12px;border-radius:9px;transition:color .25s var(--ease),background .25s var(--ease)}
+.navlinks a:hover{color:var(--text);background:rgba(79,143,247,.10);text-decoration:none}
+.navlinks a.on{color:#cfe3ff;background:rgba(79,143,247,.16)}
+.navlinks a.hl{color:var(--brand2)}
+.nav-extra{margin-left:auto;display:flex;gap:14px;font-size:13px;white-space:nowrap}
+.nav-extra a{color:var(--faint)} .nav-extra a:hover{color:var(--brand2)}
+
+/* ================= hero ================= */
+.hero{padding:34px 0 28px;position:relative}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:#9cc3ff;border:1px solid rgba(79,143,247,.35);background:rgba(79,143,247,.08);
+  border-radius:999px;padding:6px 14px}
+.kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);
+  animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+h1.title{margin:16px 0 10px;font-size:clamp(40px,5vw,64px);line-height:1.02;font-weight:800;letter-spacing:-.035em}
+h1.title .grad{background:linear-gradient(96deg,#7db4ff 0%,#37c6ff 46%,#a89bff 92%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.subtitle{font-size:clamp(17px,2.1vw,21px);color:var(--dim);max-width:66ch;margin:0 0 22px}
+.subtitle b{color:var(--text);font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.badge{font-size:13px;font-weight:600;color:#c9d8ee;border:1px solid var(--line2);background:rgba(22,29,43,.75);
+  border-radius:999px;padding:6px 13px;transition:transform .3s var(--ease),border-color .3s var(--ease)}
+.badge:hover{transform:translateY(-2px);border-color:rgba(79,143,247,.55)}
+.badge.hot{border-color:rgba(63,217,124,.4);color:#b9f3d0}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:12px;padding:12px 22px;font-size:15px;font-weight:700;
+  cursor:pointer;border:1px solid transparent;transition:transform .25s var(--ease),box-shadow .25s var(--ease),background .25s var(--ease)}
+.btn.primary{background:linear-gradient(94deg,#3d7ef0,#2fb4e8);color:#fff;box-shadow:0 8px 28px rgba(61,126,240,.35)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(61,126,240,.45)}
+.btn.ghost{background:rgba(22,29,43,.7);color:#cfe0f5;border-color:var(--line2)}
+.btn.ghost:hover{transform:translateY(-2px);border-color:rgba(79,143,247,.5)}
+/* stat tiles */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat{background:linear-gradient(180deg,rgba(22,29,43,.9),rgba(16,22,33,.9));border:1px solid var(--line);
+  border-radius:14px;padding:12px 15px 11px;position:relative;overflow:hidden;
+  transition:transform .35s var(--ease),border-color .35s var(--ease),box-shadow .35s var(--ease)}
+.stat::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(79,143,247,.7),transparent);opacity:.6}
+.stat:hover{transform:translateY(-4px);border-color:var(--line2);box-shadow:0 14px 34px rgba(0,0,0,.35)}
+.stat-num{font-size:clamp(26px,3vw,36px);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  background:linear-gradient(180deg,#fff,#a9c4ea);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-num .suf,.stat-num .pre{font-size:.62em;font-weight:700;color:#8fb4e8;-webkit-text-fill-color:#8fb4e8}
+.stat-label{margin-top:5px;font-size:13px;color:var(--dim)}
+
+/* ================= sections ================= */
+section{padding:46px 0}
+.sec-head{margin-bottom:22px;max-width:78ch}
+.sec-kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--brand2);font-weight:700}
+.sec-head h2{margin:10px 0 12px;font-size:clamp(28px,3.6vw,42px);font-weight:800;letter-spacing:-.025em}
+.sec-head p{margin:0;color:var(--dim);font-size:16.5px}
+.card{background:linear-gradient(180deg,var(--panel),#101623);border:1px solid var(--line);border-radius:18px;
+  transition:transform .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease)}
+.card:hover{transform:translateY(-5px);box-shadow:0 18px 44px rgba(0,0,0,.4);border-color:var(--line2)}
+
+/* reveal-on-scroll */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .6s var(--ease),transform .6s var(--ease);transition-delay:var(--d,0ms)}
+.reveal.in{opacity:1;transform:none}
+
+/* ================= demo ================= */
+.demo-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:14px}
+.chips{display:inline-flex;background:rgba(10,14,20,.7);border:1px solid var(--line2);border-radius:11px;padding:4px;gap:4px}
+.chip{border:none;background:transparent;color:var(--dim);font-size:13.5px;font-weight:600;padding:7px 15px;border-radius:8px;
+  cursor:pointer;transition:background .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease)}
+.chip:hover{color:var(--text)}
+.chip.on{background:linear-gradient(94deg,rgba(79,143,247,.28),rgba(55,198,255,.22));color:#eaf3ff;
+  box-shadow:inset 0 0 0 1px rgba(79,143,247,.5)}
+.chip.arm-jf.on{background:linear-gradient(94deg,rgba(79,143,247,.4),rgba(55,198,255,.3))}
+.chip.arm-rj.on{background:rgba(139,148,158,.22);box-shadow:inset 0 0 0 1px rgba(139,148,158,.5)}
+.tally{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--dim);
+  background:rgba(10,14,20,.6);border:1px solid var(--line);border-radius:11px;padding:8px 14px;flex-wrap:wrap}
+.tally b{font-variant-numeric:tabular-nums;font-weight:800}
+.tally .tjf{color:#8fc0ff}.tally .trj{color:#c3cad4}
+.tally .sep{color:var(--faint)}
+
+.taskband{display:flex;gap:12px;align-items:flex-start;padding:14px 18px;margin-bottom:14px;border-radius:14px;
+  background:linear-gradient(94deg,rgba(240,180,41,.10),rgba(240,180,41,.03));
+  border:1px solid rgba(240,180,41,.28)}
+.taskband .q{flex:1;min-width:0}
+.taskband .who{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:#e8c46a;font-weight:700}
+.taskband .task{font-size:15.5px;color:#f2ecd9;margin-top:3px;overflow-wrap:anywhere}
+.verdicts{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.vchip{font-size:12.5px;font-weight:700;border-radius:9px;padding:5px 11px;border:1px solid;font-variant-numeric:tabular-nums}
+.vchip.win{color:#a9f0c6;border-color:rgba(63,217,124,.45);background:rgba(63,217,124,.10)}
+.vchip.lose{color:#f5b8b4;border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.09)}
+
+/* browser shell */
+.browser{border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:#171d28;
+  box-shadow:0 24px 70px rgba(0,0,0,.5);position:relative;min-height:360px}
+.browser-stage{width:1180px;transform:scale(var(--demo-scale,1));transform-origin:top left;will-change:transform}
+.demo-fit-note{margin:10px 2px 0;color:var(--faint);font:11px var(--mono);text-align:right}
+.tabstrip{display:flex;align-items:flex-end;gap:6px;padding:9px 12px 0}
+.btab{display:flex;gap:8px;align-items:center;max-width:240px;background:#222a38;color:#b9c4d4;
+  border:1px solid #2a3446;border-bottom:none;border-radius:10px 10px 0 0;padding:7px 14px;font-size:12.5px;white-space:nowrap}
+.btab.active{background:var(--site-bg);color:#1f2328;font-weight:600}
+.btab .x{opacity:.5}.btab .fav{font-size:12px}
+.btab.plus{background:none;border:1px solid transparent;color:var(--faint);padding:7px 10px}
+.chrome{display:flex;align-items:center;gap:12px;padding:9px 14px;background:#eceff3;border-bottom:1px solid #d8dee4}
+.navbtns{color:#9aa4ae;font-size:14px;letter-spacing:3px;user-select:none}
+.urlbar{flex:1;display:flex;gap:9px;align-items:center;background:#fff;border:1px solid #d8dee4;border-radius:18px;
+  padding:6px 14px;color:#3c434b;font-size:13px;font-family:var(--mono)}
+.urlbar .lock{color:#1a7f37;font-size:11px}
+.urlbar .reload{margin-left:auto;color:#9aa4ae}
+.pilot{font-size:11.5px;font-weight:700;color:#fff;background:linear-gradient(94deg,#2ea458,#3fd97c);
+  border-radius:999px;padding:5px 12px;white-space:nowrap;box-shadow:0 2px 10px rgba(46,164,88,.4);
+  display:flex;gap:6px;align-items:center}
+.pilot .dot{width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.6s ease-in-out infinite}
+/* per-step inference latency indicator */
+.lat-instr{display:flex;gap:7px;align-items:center;flex-shrink:0}
+.li-arm{display:flex;gap:5px;align-items:center;font-size:10px;color:#57606a;background:#fff;
+  border:1px solid #d8dee4;border-radius:8px;padding:3.5px 8px;transition:box-shadow .3s var(--ease)}
+.li-arm i{font-style:normal;font-size:10px;line-height:1}
+.li-arm em{font-style:normal;font-weight:700;font-size:9.5px;letter-spacing:.02em;white-space:nowrap}
+.li-arm .libar{width:32px;height:5px;border-radius:3px;background:#e6eaee;overflow:hidden;display:inline-block}
+.li-arm .lifill{display:block;height:100%;width:0;border-radius:3px}
+.lifill.jf{background:linear-gradient(90deg,#d95f2b,#eb6c36)}
+.lifill.rj{background:linear-gradient(90deg,#8b949e,#c9d1d9)}
+.li-arm .lims{font-family:var(--mono);font-size:9.5px;color:#3c434b;min-width:50px;text-align:right;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.li-arm.flash.jf{box-shadow:0 0 0 3px rgba(235,108,54,.3);border-color:#eb6c36}
+.li-arm.flash.rj{box-shadow:0 0 0 3px rgba(160,172,186,.35);border-color:#8b949e}
+@media(max-width:820px){.lat-instr{display:none}}
+
+/* fake FlightCenter site */
+.viewport{position:relative;background:var(--site-bg);color:var(--site-text);overflow-x:auto}
+.site{position:relative;min-width:760px}
+.taskstrip{display:flex;gap:10px;align-items:center;background:#fff8e6;border-bottom:1px solid #eadfae;
+  color:#7d5c00;padding:8px 22px;font-size:12.5px}
+.taskstrip .lbl{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;background:#f0b429;
+  color:#4d3800;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.sitehead{display:flex;align-items:center;gap:8px;padding:14px 22px 11px;border-bottom:2px solid #e4e7eb;flex-wrap:wrap}
+.logo-fc{font-size:21px;font-weight:800;letter-spacing:-.03em;color:var(--site-brand);display:flex;align-items:center;gap:8px}
+.logo-fc .plane{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;color:#fff;
+  background:linear-gradient(135deg,#0b5fff,#3c8dff);font-size:15px}
+.logo-fc small{font-size:10px;color:var(--site-dim);font-weight:600;margin-left:2px;letter-spacing:.08em}
+ul.fnav{display:flex;list-style:none;margin:0 0 0 18px;padding:0}
+ul.fnav li{position:relative;padding:9px 16px;font-size:14px;color:#2f363d;cursor:pointer;
+  border-right:1px solid #e4e7eb;transition:background .2s}
+ul.fnav li:first-child{border-left:1px solid #e4e7eb}
+ul.fnav li:hover{background:#eceff3}
+.signin{margin-left:auto;font-size:13px;font-weight:600;color:var(--site-brand);border:1.5px solid var(--site-brand);
+  border-radius:9px;padding:6px 14px;background:#fff}
+.sitehero{margin:16px 22px 0;border-radius:14px;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(115deg,#0b3fb0 0%,#0b5fff 42%,#37a6ff 78%,#7cc3ff 100%);
+  display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 26px;min-height:128px}
+.sitehero::after{content:"";position:absolute;right:-40px;top:-70px;width:230px;height:230px;border-radius:50%;
+  background:rgba(255,255,255,.13)}
+.sitehero h3{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em}
+.sitehero p{margin:6px 0 0;font-size:13px;opacity:.92;max-width:46ch}
+.sitehero .herobtn{border:none;border-radius:10px;padding:11px 20px;font-weight:800;font-size:14px;cursor:pointer;
+  background:#fff;color:var(--site-brand);box-shadow:0 4px 14px rgba(0,0,0,.2);transition:transform .2s}
+.sitehero .herobtn:hover{transform:translateY(-1px)}
+.heroimg{width:170px;height:86px;border-radius:11px;flex-shrink:0;position:relative;z-index:1;overflow:hidden;
+  background:linear-gradient(140deg,#ffd89b,#ff9d6c 55%,#c65cff);display:grid;place-items:center;font-size:30px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.siteform{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:16px 22px 0;background:#fff;
+  border:1px solid var(--site-line);border-radius:13px;padding:15px 17px;box-shadow:0 3px 14px rgba(31,35,40,.06)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+.field label{font-size:10.5px;font-weight:700;color:var(--site-dim);text-transform:uppercase;letter-spacing:.06em}
+.field input{border:1px solid #d0d7de;border-radius:8px;padding:9px 11px;font-size:13.5px;color:#1f2328;background:#fff;
+  box-shadow:inset 0 1px 0 rgba(31,35,40,.04)}
+.searchbtn{border:none;border-radius:9px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg,#3c8dff,#0b5fff);box-shadow:0 2px 8px rgba(11,95,255,.35);transition:filter .2s}
+.searchbtn:hover{filter:brightness(1.07)}
+.sitecols{display:grid;grid-template-columns:1fr 264px;gap:18px;margin:16px 22px 0}
+.farebox{background:#fff;border:1px solid var(--site-line);border-radius:13px;padding:16px 18px;box-shadow:0 3px 14px rgba(31,35,40,.05)}
+.farebox h4{margin:0 0 3px;font-size:16px;font-weight:700}
+.farebox .sub{margin:0 0 12px;font-size:12px;color:var(--site-dim)}
+table.fares{width:100%;border-collapse:collapse;font-size:13.5px}
+table.fares th{text-align:left;color:var(--site-dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  padding:6px 8px;border-bottom:1px solid var(--site-line)}
+table.fares td{padding:9px 8px;border-bottom:1px solid #eef1f4}
+table.fares tr:last-child td{border-bottom:none}
+table.fares .price{font-weight:800;color:#0b5fff;text-align:right;font-variant-numeric:tabular-nums}
+.side{display:flex;flex-direction:column;gap:14px}
+.promocard{border-radius:13px;padding:16px;color:#fff;background:linear-gradient(135deg,#5b2fb0,#9333ea)}
+.promocard h5{margin:0 0 4px;font-size:14.5px}
+.promocard p{margin:0;font-size:12px;opacity:.88}
+.sidelinks{background:#fff;border:1px solid var(--site-line);border-radius:13px;padding:14px 16px}
+.sidelinks h6{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--site-dim)}
+.sidelinks a{display:block;font-size:13px;color:var(--site-brand);padding:4px 0}
+.sitefoot{margin-top:18px;border-top:1px solid #e4e7eb;background:#eef0f3;color:#6a737d;font-size:11.5px;
+  padding:10px 22px;display:flex;gap:16px;flex-wrap:wrap}
+
+/* candidate slots */
+.candslot{position:relative;outline:2px solid transparent;transition:outline-color .25s var(--ease),box-shadow .25s var(--ease)}
+.candslot .tagid{position:absolute;z-index:5;top:-7px;right:-5px;font-family:var(--mono);font-size:8.5px;line-height:1;
+  background:#242c3a;color:#aebccd;border:1px solid #3a4557;border-radius:5px;padding:2.5px 4.5px;opacity:0;
+  transition:opacity .25s var(--ease);pointer-events:none}
+.viewport:hover .candslot .tagid{opacity:.92}
+.candslot.gold{outline-color:var(--amber);outline-offset:1px;border-radius:6px}
+.candslot.gold .tagid{background:#4d3800;color:#ffd97a;border-color:#8a6510;opacity:.95}
+.candslot.aim{outline-color:#4f8ff7;outline-offset:1px;border-radius:6px;
+  box-shadow:0 0 0 5px rgba(79,143,247,.18);animation:aimin .5s var(--ease)}
+.candslot.hl{outline-color:#37c6ff;box-shadow:0 0 0 4px rgba(55,198,255,.2)}
+.aimflash{position:absolute;inset:-2px;border-radius:8px;pointer-events:none;
+  animation:aimflash .9s var(--ease) forwards}
+@keyframes aimin{from{box-shadow:0 0 0 0 rgba(79,143,247,0)}to{box-shadow:0 0 0 5px rgba(79,143,247,.18)}}
+@keyframes aimflash{from{background:rgba(79,143,247,.22);opacity:1}to{background:rgba(79,143,247,.22);opacity:0}}
+
+/* content cards (candidates rendered as cards) */
+.cardgrid{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.minicard{border-radius:12px;padding:14px 16px;background:#fff;border:1px solid var(--site-line);
+  box-shadow:0 2px 10px rgba(31,35,40,.05);transition:transform .25s var(--ease),box-shadow .25s var(--ease)}
+.minicard:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(31,35,40,.1)}
+.minicard h6{margin:0 0 5px;font-size:13px;font-weight:700;color:#1f2328;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.minicard p{margin:0;font-size:12px;color:var(--site-dim)}
+.minicard.v1{background:linear-gradient(135deg,#eef4ff,#f8fbff);border-color:#d5e3fb}
+.minicard.v2{background:linear-gradient(135deg,#fff8ec,#fffdf7);border-color:#f3e3bd}
+.minicard.v3{background:linear-gradient(135deg,#f3f0ff,#faf9ff);border-color:#e0d9f8}
+.minicard .stars{color:#f0a429;font-size:12px;letter-spacing:1.5px}
+
+/* cursor */
+.cursor{position:absolute;left:0;top:0;z-index:60;pointer-events:none;will-change:transform}
+.cursor svg{display:block;filter:drop-shadow(0 3px 5px rgba(0,0,0,.45))}
+.cursor.pressed svg{transform:scale(.72);transform-origin:0 0}
+.ripple{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;z-index:59;pointer-events:none;
+  animation:ripple .65s ease-out forwards}
+.ripple.jf{border:2.5px solid #eb6c36;background:rgba(235,108,54,.32)}
+.ripple.rj{border:2.5px solid #c9d1d9;background:rgba(201,209,217,.28)}
+@keyframes ripple{from{transform:scale(.3);opacity:.95}to{transform:scale(3.6);opacity:0}}
+.candslot.aim-jf{outline-color:#eb6c36;box-shadow:0 0 0 5px rgba(235,108,54,.16)}
+.candslot.aim-rj{outline-color:#c9d1d9;box-shadow:0 0 0 5px rgba(201,209,217,.14)}
+.aimflash.jf{background:rgba(235,108,54,.22)}
+.aimflash.rj{background:rgba(201,209,217,.18)}
+
+/* transport + autoplay status */
+.transport{display:inline-flex;gap:8px;align-items:center}
+.playbtn{width:38px;height:38px;border-radius:11px;border:1px solid rgba(79,143,247,.5);
+  background:linear-gradient(94deg,rgba(61,126,240,.3),rgba(47,180,232,.22));color:#eaf3ff;font-size:14px;
+  cursor:pointer;transition:transform .25s var(--ease),box-shadow .25s var(--ease)}
+.playbtn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(61,126,240,.35)}
+.autostatus{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.autostatus .live{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--dim);font-family:var(--mono)}
+.autostatus .live .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);
+  animation:pulse 1.8s ease-in-out infinite}
+.autostatus .live b{color:#cfe0f5}
+.chips.speed .chip{padding:6px 12px;font-size:12.5px}
+
+/* page-switch transition */
+.siteouter{position:relative;overflow:hidden}
+.site.leaving{opacity:0;transform:translateX(-52px);transition:opacity .22s var(--ease),transform .22s var(--ease)}
+.site.entering{opacity:0;transform:translateX(52px);transition:none}
+.site.entering.in{opacity:1;transform:none;transition:opacity .26s var(--ease),transform .26s var(--ease)}
+
+/* verdict callout at the click point */
+.callout{position:absolute;z-index:70;pointer-events:none;white-space:nowrap;
+  background:rgba(10,14,20,.92);border:1px solid var(--line2);border-radius:10px;
+  padding:7px 11px;box-shadow:0 14px 38px rgba(0,0,0,.5);backdrop-filter:blur(6px);
+  animation:calloutin .34s var(--ease)}
+.callout.jf{border-left:3px solid #eb6c36}
+.callout.rj{border-left:3px solid #9aa8bb}
+@keyframes calloutin{from{opacity:0;transform:translateY(9px) scale(.94)}to{opacity:1;transform:none}}
+.callout.out{transition:opacity .22s var(--ease),transform .22s var(--ease);opacity:0;transform:translateY(6px)}
+.callout .cl-row{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--dim)}
+.callout .cl-row b{font-weight:800;color:#eaf3ff}
+.callout.jf .cl-row b{color:#ffc09a}
+.callout.rj .cl-row b{color:#dbe2ea}
+.callout .cl-row .pv{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--text)}
+.callout .cl-row .mk{font-weight:800;margin-left:2px}
+.callout .cl-row.hit .pv,.callout .cl-row.hit .mk{color:#7ee7a8}
+.callout .cl-row.miss .pv,.callout .cl-row.miss .mk{color:#f5a099}
+.callout .cl-row .st{font-size:10.5px;color:var(--faint)}
+
+/* ================= speed ================= */
+.speed-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+@media(max-width:920px){.speed-grid{grid-template-columns:1fr}}
+.latency{padding:26px 28px}
+.latrow{margin:20px 0 26px}
+.latrow .lh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;gap:10px;flex-wrap:wrap}
+.latrow .lh .nm{font-size:14.5px;font-weight:700}
+.latrow .lh .nm small{color:var(--faint);font-weight:500;margin-left:8px;font-size:12px}
+.latrow .lh .ms{font-family:var(--mono);font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
+.latrow.jf .ms{color:#7ee7a8}.latrow.rj .ms{color:#c3cad4}
+.bigtrack{height:26px;background:#0a0f18;border:1px solid #1c2534;border-radius:10px;overflow:hidden}
+.bigfill{height:100%;width:0;border-radius:10px;transition:width 1s var(--ease)}
+.bigfill.jf{background:linear-gradient(90deg,#2ea458,#3fd97c);box-shadow:0 0 18px rgba(63,217,124,.35)}
+.bigfill.rj{background:linear-gradient(90deg,#4c5560,#8b949e)}
+.latcap{font-size:13px;color:var(--dim);border-top:1px dashed var(--line2);padding-top:14px}
+.dist{margin-top:20px}
+.dist .dh{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);margin-bottom:7px}
+.dist .dtrack{position:relative;height:14px;border-radius:7px;border:1px solid #1c2534;
+  background:linear-gradient(90deg,rgba(63,217,124,.4),rgba(63,217,124,.12) 40%,rgba(139,148,158,.08))}
+.dist .mark{position:absolute;top:-6px;bottom:-6px;width:2.5px;border-radius:2px}
+.dist .mark.p50{left:26.9%;background:#3fd97c;box-shadow:0 0 10px rgba(63,217,124,.8)}
+.dist .mark.p95{left:37.5%;background:#f0b429;box-shadow:0 0 10px rgba(240,180,41,.7)}
+.dist .marks{position:relative;height:20px;font-family:var(--mono);font-size:11px;margin-top:8px}
+.dist .marks span{position:absolute;white-space:nowrap}
+.flashcard{padding:26px 26px;display:flex;flex-direction:column;gap:14px;justify-content:center;position:relative;overflow:hidden}
+.flashcard::before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent 70%,rgba(63,217,124,.14),transparent);
+  animation:spin 9s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.flashcard .bolt{font-size:30px}
+.flashcard h3{margin:0;font-size:21px;font-weight:800;letter-spacing:-.02em}
+.flashcard h3 .g{background:linear-gradient(94deg,#7ee7a8,#37c6ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.flashcard p{margin:0;color:var(--dim);font-size:14px}
+.fchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.fchip{font-size:12px;font-weight:700;color:#b9f3d0;border:1px solid rgba(63,217,124,.35);background:rgba(63,217,124,.08);
+  border-radius:999px;padding:5px 12px}
+
+/* ================= results ================= */
+.bench-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:920px){.bench-grid{grid-template-columns:1fr}}
+.benchimg{padding:14px}
+.benchimg img{width:100%;display:block;border-radius:10px}
+.benchimg figcaption{margin-top:10px;font-size:13px;color:var(--dim);text-align:center}
+.results-table{margin-top:18px;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+table.rt{width:100%;border-collapse:collapse;font-size:14px;background:linear-gradient(180deg,#101624,#0d1220)}
+table.rt th,table.rt td{padding:11px 16px;text-align:right;font-variant-numeric:tabular-nums}
+table.rt th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:700;
+  border-bottom:1px solid var(--line2);background:rgba(22,29,43,.6)}
+table.rt th:first-child,table.rt td:first-child{text-align:left}
+table.rt td{border-bottom:1px solid rgba(31,40,54,.6);color:#cfd9e6}
+table.rt tr:last-child td{border-bottom:none}
+table.rt .jfcol{color:#fff;font-weight:700}
+table.rt td .win{color:#7ee7a8;font-weight:800}
+table.rt td .grp{display:inline-block;min-width:52px;color:var(--faint);font-size:12px}
+.table-note{margin-top:10px;font-size:12.5px;color:var(--faint)}
+
+/* ================= architecture ================= */
+.archimg{padding:16px}
+.archimg img{width:100%;display:block;border-radius:12px}
+.lifecycle{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.life{padding:17px 18px;position:relative;overflow:hidden}.life small{display:block;color:var(--brand2);font:700 10px var(--mono);letter-spacing:.12em;margin-bottom:6px}
+.life b{display:block;color:#eef5ff;font-size:15px;margin-bottom:5px}.life span{display:block;color:var(--dim);font-size:12px;line-height:1.45}
+.life:not(:last-child)::after{content:"→";position:absolute;right:-10px;top:50%;z-index:2;color:#6484ad;font:700 17px var(--mono)}
+.specgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.spec{padding:16px 17px}.spec b{display:block;color:#eaf3ff;font:800 18px var(--mono);margin-bottom:5px}
+.spec span{display:block;color:var(--dim);font-size:12px;line-height:1.45}
+@media(max-width:820px){.specgrid,.lifecycle{grid-template-columns:repeat(2,1fr)}.life::after{display:none}}
+.qcards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+@media(max-width:920px){.qcards{grid-template-columns:1fr}}
+.qcard{padding:22px 22px 20px;position:relative;overflow:hidden}
+.qcard .qtag{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:800;border-radius:7px;padding:4px 10px;margin-bottom:12px}
+.qcard h3{margin:0 0 8px;font-size:18px;font-weight:800}
+.qcard p{margin:0;font-size:14px;color:var(--dim)}
+.qcard.c1 .qtag{background:rgba(79,143,247,.14);color:#8fc0ff;border:1px solid rgba(79,143,247,.4)}
+.qcard.c2 .qtag{background:rgba(63,217,124,.12);color:#7ee7a8;border:1px solid rgba(63,217,124,.4)}
+.qcard.c3 .qtag{background:rgba(240,180,41,.12);color:#ffd97a;border:1px solid rgba(240,180,41,.4)}
+.repro-note{margin:16px 4px 0;font-style:italic;color:var(--dim);font-size:14.5px}
+
+/* ================= tutorial ================= */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:920px){.steps{grid-template-columns:1fr}}
+.step{padding:22px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.step .num{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:16px;
+  background:linear-gradient(135deg,#3d7ef0,#37c6ff);color:#fff;box-shadow:0 4px 16px rgba(61,126,240,.4)}
+.step h3{margin:0;font-size:17px;font-weight:800}
+.step p{margin:0;font-size:13.5px;color:var(--dim)}
+.codebox{position:relative;background:#0a0f18;border:1px solid #1c2534;border-radius:11px;padding:13px 14px;overflow:auto;max-width:100%;min-width:0}
+.codebox pre{margin:0;font-size:12.5px;line-height:1.65;color:#c8e3ff;white-space:pre;overflow-x:auto;padding-right:64px}
+.codebox .cm{color:#54617a}
+.copybtn{position:absolute;top:8px;right:8px;border:1px solid #2b3850;background:#141c2c;color:#9db4d4;border-radius:7px;
+  font-size:11px;font-weight:700;padding:4px 10px;cursor:pointer;transition:all .25s var(--ease);font-family:ui-sans-serif,system-ui}
+.copybtn:hover{border-color:var(--brand);color:#fff}
+.copybtn.done{border-color:rgba(63,217,124,.5);color:#7ee7a8;background:rgba(63,217,124,.08)}
+details.train{margin-top:18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#101624,#0d1220);overflow:hidden}
+details.train summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:12px;padding:18px 22px;font-weight:800;font-size:16px}
+details.train summary::-webkit-details-marker{display:none}
+details.train summary .car{margin-left:auto;transition:transform .3s var(--ease);color:var(--dim)}
+details.train[open] summary .car{transform:rotate(180deg)}
+.train-body{padding:4px 22px 22px;display:grid;gap:12px}
+.train-body .codebox{position:relative}
+.costline{font-size:13.5px;color:#ffd97a;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.3);
+  border-radius:11px;padding:10px 16px}
+.rlcd-note{display:grid;gap:7px;padding:15px 16px;border-radius:12px;border:1px solid rgba(55,198,255,.28);
+  background:linear-gradient(135deg,rgba(61,126,240,.10),rgba(55,198,255,.05));font-size:13.5px;color:var(--dim);line-height:1.6}
+.rlcd-note b{font-size:14.5px;color:#b9dcff}.rlcd-note a{color:#8fc8ff;text-decoration:none}.rlcd-note a:hover{text-decoration:underline}
+
+/* ================= footer ================= */
+footer{border-top:1px solid var(--line);padding:44px 0 60px;margin-top:30px;color:var(--dim);font-size:14px}
+footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
+footer h4{margin:0 0 12px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+footer ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+footer a{color:#a9bdd8}
+.foot-note{margin-top:30px;font-size:12.5px;color:var(--faint);max-width:100ch}
+
+@media(max-width:860px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .navlinks{display:none}
+  section{padding:56px 0}
+  .hero{padding:56px 0 40px}
+  .tally{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="gridlines" aria-hidden="true"></div>
+
+<nav class="topnav">
+  <div class="wrap">
+    <span class="logo"><img src="assets/decisionforge-icon.svg" alt="" width="25" height="25"><b>DecisionForge</b></span>
+    <div class="navlinks">
+      <a href="#demo" data-sec="demo">Demo</a>
+      <a href="#speed" data-sec="speed">Speed</a>
+      <a href="#results" data-sec="results">Results</a>
+      <a href="#architecture" data-sec="architecture">Architecture</a>
+      <a href="#tutorial" data-sec="tutorial">Tutorial</a>
+    </div>
+    <div class="nav-extra">
+      <a class="hl" href="compare.html">Compare</a>
+      <a class="hl" href="decisions.html">Decisions</a>
+      <a class="hl" href="training_curves.html">Curves</a>
+      <a href="https://huggingface.co/AndeyTait/DecisionForge-0.8B" target="_blank" rel="noopener">Weights ↗</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <span class="kicker reveal"><span class="dot"></span>Recorded candidate decisions · Jev contract</span>
+    <h1 class="title reveal" style="--d:60ms"><span class="grad">DecisionForge</span></h1>
+    <p class="subtitle reveal" style="--d:120ms">An end-to-end toolkit for <b>decision-data synthesis, training,
+      evaluation and inference</b>, focused on fast decisions inside web interactions — which element to click,
+      navigate to, fill, route or escalate next.</p>
+    <div class="badges reveal" style="--d:170ms">
+      <span class="badge">synthesize → train → serve</span>
+      <span class="badge">1 forward pass</span>
+      <span class="badge">0 output tokens</span>
+      <span class="badge">Jev contract · /v1/systemone</span>
+      <span class="badge hot">p50 50 ms</span>
+    </div>
+    <div class="hero-cta reveal" style="--d:220ms">
+      <a class="btn primary" href="#demo">▶ Watch it choose</a>
+      <a class="btn ghost" href="https://typesafe.ai/blog/introducing-system-one-models-and-jev#fun-demos" target="_blank" rel="noopener">Jev interaction demos ↗</a>
+      <a class="btn ghost" href="#tutorial">Install in 3 steps</a>
+    </div>
+    <div class="stats">
+      <div class="stat reveal" style="--d:60ms"><div class="stat-num"><span data-count="0.637" data-dec="3">0.000</span></div><div class="stat-label">OOD top-1 on websites it never saw</div></div>
+      <div class="stat reveal" style="--d:120ms"><div class="stat-num"><span data-count="50" data-dec="0">0</span><span class="suf"> ms</span></div><div class="stat-label">warm p50, local GPU — vs 1,078 ms hosted API</div></div>
+      <div class="stat reveal" style="--d:180ms"><div class="stat-num"><span data-count="1200" data-dec="0">0</span></div><div class="stat-label">steps in the recorded release recipe</div></div>
+      <div class="stat reveal" style="--d:240ms"><div class="stat-num"><span class="pre">&lt;</span><span data-count="3" data-dec="0">0</span><span class="suf"> GPU-h</span></div><div class="stat-label">end-to-end training on one RTX 4090</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= DEMO ================= -->
+<section id="demo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">01 · Demo</span>
+      <h2>Watch it choose, element by element</h2>
+      <p>A live-capable autopilot on a mock travel site. Every control on the page is a real candidate from a recorded
+         Mind2Web annotation. Two cursors work the same page — <b style="color:#ffb08a">DecisionForge</b> in orange,
+         <b style="color:#dbe2ea">Jev-1.13</b> in gray — each glides to its own pick and clicks it; the amber ring marks
+         the gold answer, and each verdict lands at its click point. Pages turn like real browsing; it runs all 48
+         held-out samples on a loop.</p>
+    </div>
+
+    <div class="demo-top reveal" style="--d:80ms">
+      <div class="transport">
+        <button class="playbtn" id="playpause" title="pause">⏸</button>
+        <div class="chips speed" role="group" aria-label="speed">
+          <button class="chip spd" data-spd="0.5">0.5×</button>
+          <button class="chip spd on" data-spd="1">1×</button>
+          <button class="chip spd" data-spd="2">2×</button>
+        </div>
+      </div>
+      <div class="autostatus">
+        <span class="live"><span class="dot"></span><span id="api-status">connecting to /v1/systemone</span> · sample <b id="auto-n">—</b> / 48 · <span id="auto-site">—</span></span>
+        <div class="tally" id="tally">…</div>
+      </div>
+    </div>
+
+    <div class="taskband reveal" style="--d:100ms">
+      <div class="q">
+        <div class="who" id="d-who">—</div>
+        <div class="task" id="d-task">—</div>
+      </div>
+      <div class="verdicts" id="d-verdicts"></div>
+    </div>
+
+    <div class="browser reveal" id="demo-browser" style="--d:140ms">
+     <div class="browser-stage" id="browser-stage">
+      <div class="tabstrip">
+        <span class="btab active"><span class="fav">✈</span> FlightCenter — Fall fares <span class="x">✕</span></span>
+        <span class="btab"><span class="fav">◈</span> DecisionForge demo <span class="x">✕</span></span>
+        <span class="btab plus">＋</span>
+      </div>
+      <div class="chrome">
+        <span class="navbtns">‹ › ⟳</span>
+        <span class="urlbar"><span class="lock">🔒</span> https://www.flightcenter.com/deals <span class="reload">⟳</span></span>
+        <span class="lat-instr" id="lat-instr" title="per-step inference latency — measured on the replay">
+          <span class="li-arm jf" id="li-jf"><i>⚡</i><em>DecisionForge</em><span class="libar"><span class="lifill jf"></span></span><b class="lims">— ms</b></span>
+          <span class="li-arm rj" id="li-rj"><i>⚡</i><em>Jev-1.13</em><span class="libar"><span class="lifill rj"></span></span><b class="lims">— ms</b></span>
+        </span>
+        <span class="pilot"><span class="dot"></span> autopilot</span>
+      </div>
+      <div class="viewport" id="viewport">
+       <div class="siteouter">
+        <div class="site" id="site">
+          <div class="taskstrip"><span class="lbl">Task</span><span id="site-task">—</span></div>
+          <div class="sitehead">
+            <span class="logo-fc"><span class="plane">✈</span>FlightCenter<small>FARES·DEALS</small></span>
+            <ul class="fnav" id="fnav"></ul>
+            <span class="signin">Sign in</span>
+          </div>
+          <div class="sitehero">
+            <div>
+              <h3>Fall fares: fly warm for less</h3>
+              <p>Hand-picked round trips under $298 — book by Oct 31 and lock in summer's lowest fares to 40+ sunny cities.</p>
+            </div>
+            <div id="hero-right" style="display:flex;gap:14px;align-items:center;z-index:1"></div>
+          </div>
+          <div class="siteform" id="siteform">
+            <div class="field"><label>From</label><input value="New York (EWR)" readonly></div>
+            <div class="field"><label>To</label><input value="Anywhere" readonly></div>
+            <div class="field"><label>Depart</label><input value="Nov 12 — Nov 19" readonly></div>
+          </div>
+          <div class="sitecols">
+            <div class="farebox">
+              <h4>Today's lowest fares</h4>
+              <p class="sub">Round trip, incl. taxes · updated 4 min ago</p>
+              <table class="fares"><thead><tr><th>Destination</th><th>Dates</th><th style="text-align:right">Fare</th></tr></thead><tbody id="farebody"></tbody></table>
+            </div>
+            <div class="side">
+              <div class="promocard"><h5>✦ Member Week</h5><p>Extra 15% off select Caribbean routes — Nov sailings only.</p></div>
+              <div class="sidelinks"><h6>Explore</h6><a href="javascript:void 0">Weekend escapes</a><a href="javascript:void 0">Business class upgrades</a><a href="javascript:void 0">Gift cards</a></div>
+            </div>
+            <div class="cardgrid" id="cardgrid"></div>
+          </div>
+          <div class="sitefoot"><span>© 2026 FlightCenter</span><span>About</span><span>Help</span><span>Privacy</span><span>Terms</span>
+            <span style="margin-left:auto">demo surface rendered from recorded DOM candidates</span></div>
+          <div class="cursor" id="cursor-jf" style="transform:translate(-100px,-100px)">
+            <svg width="27" height="27" viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.2L15 19.4 12.6 20.5 10.3 14 5 17.6z" fill="#eb6c36" stroke="#2a1206" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="cursor" id="cursor-rj" style="transform:translate(-160px,-100px)">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 3l14 8.5-6.2 1.2L15 19.4 12.6 20.5 10.3 14 5 17.6z" fill="#e8eef6" stroke="#1b2430" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div>
+    <p class="demo-fit-note">The complete replay is scaled to the current viewport.</p>
+  </div>
+</section>
+
+<!-- ================= SPEED ================= -->
+<section id="speed">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">02 · Speed</span>
+      <h2>System-One speed, measured</h2>
+      <p>Same Jev contract, same request — three questions (choice + score + noul) answered per call.
+         DecisionForge serves them from a local GPU in a single forward pass; Jev-1.13 round-trips a
+         generation API. Lower is better.</p>
+    </div>
+    <div class="speed-grid">
+      <div class="card latency reveal">
+        <div class="latrow jf">
+          <div class="lh"><span class="nm">DecisionForge 0.8B <small>local · RTX 4090</small></span><span class="ms" data-ms="50">0 ms</span></div>
+          <div class="bigtrack"><div class="bigfill jf" data-w="4.6%"></div></div>
+        </div>
+        <div class="latrow rj">
+          <div class="lh"><span class="nm">Jev-1.13 <small>hosted API</small></span><span class="ms" data-ms="1078">0 ms</span></div>
+          <div class="bigtrack"><div class="bigfill rj" data-w="98%"></div></div>
+        </div>
+        <p class="latcap"><b style="color:var(--text)">same contract · 3 questions per request</b> — choice, score and noul
+          answered together in the recorded setup. It does not use autoregressive text decoding.</p>
+        <div class="dist">
+          <div class="dh"><span>0 ms</span><span>measured request latency distribution</span><span>1,200 ms</span></div>
+          <div class="dtrack"><span class="mark p50"></span><span class="mark p95"></span></div>
+          <div class="marks"><span style="left:4.2%;color:#7ee7a8">p50 50</span><span style="left:7%;color:#ffd97a">observed max 53</span></div>
+        </div>
+      </div>
+      <div class="card flashcard reveal" style="--d:100ms">
+        <span class="bolt">⚡</span>
+        <h3><span class="g">1 forward pass · 0 output tokens</span></h3>
+        <p>The whole answer — a full distribution over candidates, a difficulty score and per-statement
+           truths — is read straight off the logits. No autoregressive decoding, no prompt-injected
+           reasoning or generated answer text.</p>
+        <div class="fchips"><span class="fchip">21.6× faster</span><span class="fchip">warm p50 50 ms</span><span class="fchip">12 measured calls</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= RESULTS ================= -->
+<section id="results">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">03 · Results</span>
+      <h2>Held-out, website-disjoint, honest</h2>
+      <p>Fixed splits — a website never appears in both training and evaluation. Results below are reported as a bounded
+         candidate-scoring comparison; one lower OOD score-MAE row is not a general superiority claim.</p>
+    </div>
+    <div class="results-table reveal" style="--d:160ms">
+      <table class="rt">
+        <thead><tr><th>metric</th><th>split</th><th>Raw Qwen3.5-0.8B¹</th><th>DecisionForge 0.8B</th><th>Jev-1.13</th></tr></thead>
+        <tbody>
+          <tr><td>choice top-1 ↑</td><td><span class="grp">test</span></td><td>0.235</td><td class="jfcol"><span class="win">0.579</span></td><td>0.543</td></tr>
+          <tr><td></td><td><span class="grp">ood</span></td><td>0.340</td><td class="jfcol"><span class="win">0.637</span></td><td>0.610</td></tr>
+          <tr><td>noul accuracy ↑</td><td><span class="grp">test</span></td><td>—</td><td class="jfcol">0.826</td><td><span class="win">0.910</span></td></tr>
+          <tr><td></td><td><span class="grp">ood</span></td><td>—</td><td class="jfcol"><span class="win">0.860</span></td><td>0.825</td></tr>
+          <tr><td>noul Brier ↓</td><td><span class="grp">test</span></td><td>—</td><td class="jfcol">0.128</td><td><span class="win">0.092</span></td></tr>
+          <tr><td></td><td><span class="grp">ood</span></td><td>—</td><td class="jfcol"><span class="win">0.117</span></td><td>0.131</td></tr>
+          <tr><td>score MAE ↓</td><td><span class="grp">test</span></td><td>—</td><td class="jfcol">0.367</td><td><span class="win">0.348</span></td></tr>
+          <tr><td></td><td><span class="grp">ood</span></td><td>—</td><td class="jfcol"><span class="win">0.390</span></td><td>0.463</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note reveal" style="--d:200ms">¹ Raw backbone = zero-shot JSON scoring on the first 200 records
+       per split. noul = per-statement truth probability; Brier ↓ better; score MAE = mean absolute error of the
+       0–1 difficulty score.</p>
+  </div>
+</section>
+
+<!-- ================= ARCHITECTURE ================= -->
+<section id="architecture">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">04 · Architecture</span>
+      <h2>One toolkit, the whole decision lifecycle</h2>
+      <p>DecisionForge covers the path from raw task records to a calibrated, Jev-compatible service. Its first focus is
+         the repeated decision loop inside web interaction: observe the page state, score the available actions, act,
+         and repeat. The model is one output of that reproducible pipeline, not the whole project.</p>
+    </div>
+    <div class="lifecycle reveal" style="--d:30ms">
+      <div class="card life"><small>01 · DATA</small><b>Build decision records</b><span>normalise raw states, questions, candidates and website-disjoint splits</span></div>
+      <div class="card life"><small>02 · SYNTHESIZE</small><b>Complete supervision</b><span>create auditable decision-label distributions with resumable caches</span></div>
+      <div class="card life"><small>03 · TRAIN</small><b>Fit and calibrate</b><span>train candidate scorers, select checkpoints and calibrate held-out probabilities</span></div>
+      <div class="card life"><small>04 · SERVE</small><b>Evaluate and infer</b><span>run frozen test/OOD reports and expose the Jev-compatible endpoint</span></div>
+    </div>
+    <div class="card archimg reveal">
+      <img src="assets/decisionforge-flow.svg" alt="DecisionForge candidate scoring: shared context, candidate rows, final-token pooling, shared scorer, question-level probabilities" loading="lazy">
+    </div>
+    <div class="specgrid reveal" style="--d:50ms">
+      <div class="card spec"><b>Candidate framing</b><span>shared state + question, paired with one candidate path per row</span></div>
+      <div class="card spec"><b>Position pooling</b><span>the last valid token becomes that candidate's representation</span></div>
+      <div class="card spec"><b>Shared scorer</b><span>one two-layer GELU head assigns every candidate a comparable scalar</span></div>
+      <div class="card spec"><b>Question softmax</b><span>only candidates from the same question compete; no text decoding</span></div>
+    </div>
+    <p class="repro-note reveal" style="--d:60ms"><em>DecisionForge is a personal, independent research project exploring open structured-decision models and Jev-style interfaces.</em></p>
+    <div class="qcards">
+      <div class="card qcard c1 reveal" style="--d:60ms">
+        <span class="qtag">choice</span>
+        <h3>Which element should I act on?</h3>
+        <p>A complete probability distribution over every candidate element — click targets, nav items and form fields —
+           with ties and uncertainty preserved.</p>
+      </div>
+      <div class="card qcard c2 reveal" style="--d:120ms">
+        <span class="qtag">score</span>
+        <h3>How hard is this page?</h3>
+        <p>A 0–1 difficulty score per task, learned from recorded label distributions so downstream agents can
+           decide when to slow down or escalate.</p>
+      </div>
+      <div class="card qcard c3 reveal" style="--d:180ms">
+        <span class="qtag">noul</span>
+        <h3>Is this statement true here?</h3>
+        <p>Per-statement truth probabilities over the page state — graded belief instead of a brittle boolean,
+           so "maybe" survives the contract.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TUTORIAL ================= -->
+<section id="tutorial">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="sec-kicker">05 · Tutorial</span>
+      <h2>Install and serve in three steps</h2>
+      <p>Everything runs locally: weights from Hugging Face, an OpenAI-style endpoint on your own GPU,
+         and the exact Jev contract your agents already speak.</p>
+    </div>
+    <div class="steps">
+      <div class="card step reveal">
+        <span class="num">1</span><h3>Install</h3>
+        <p>Clone the repo and install dependencies (Python 3.11+).</p>
+        <div class="codebox"><button class="copybtn" data-code="git clone https://github.com/DevDesai444/DecisionForge.git && cd DecisionForge && pip install -r requirements.txt">Copy</button>
+<pre>git clone https://github.com/DevDesai444/DecisionForge.git \
+  &amp;&amp; cd DecisionForge \
+  &amp;&amp; pip install -r requirements.txt</pre></div>
+      </div>
+      <div class="card step reveal" style="--d:80ms">
+        <span class="num">2</span><h3>Download weights</h3>
+        <p>Pull the trained checkpoint from Hugging Face.</p>
+        <div class="codebox"><button class="copybtn" data-code="huggingface-cli download AndeyTait/DecisionForge-0.8B --local-dir ckpt">Copy</button>
+<pre>huggingface-cli download \
+  AndeyTait/DecisionForge-0.8B \
+  --local-dir ckpt</pre></div>
+      </div>
+      <div class="card step reveal" style="--d:160ms">
+        <span class="num">3</span><h3>Serve &amp; call</h3>
+        <p>Start the Jev-compatible server, then ask it anything.</p>
+        <div class="codebox"><button class="copybtn" data-code="python -m decisionforge.serve --checkpoint-dir ckpt --port 8123">Copy</button>
+<pre>python -m decisionforge.serve \
+  --checkpoint-dir ckpt \
+  --port 8123</pre></div>
+        <div class="codebox"><button class="copybtn" data-code='curl localhost:8123/v1/systemone -H "content-type: application/json" -d "{\"state\":\"Task: open the privacy settings page. Elements: [e1] link Settings, [e2] button Submit, [e3] link Privacy\",\"questions\":{\"next\":{\"type\":\"choice\",\"instructions\":\"Which element should be interacted with next?\",\"criteria\":{\"e1\":\"link Settings\",\"e2\":\"button Submit\",\"e3\":\"link Privacy\"}},\"is_link\":{\"type\":\"noul\",\"instructions\":\"e1 opens the privacy settings.\"}}}"}'>Copy</button>
+<pre><span class="cm"># Jev contract in, probabilities out</span>
+curl localhost:8123/v1/systemone \
+  -H <span class="cm">'content-type: application/json'</span> \
+  -d <span class="cm">'{"state":"Task: open the privacy
+    settings page. Elements: [e1] link
+    Settings, [e2] button Submit, [e3]
+    link Privacy","questions":{
+      "next":{"type":"choice",
+        "instructions":"Which element
+        should be interacted with next?",
+        "criteria":{"e1":"link Settings",
+          "e2":"button Submit",
+          "e3":"link Privacy"}},
+      "is_link":{"type":"noul",
+        "instructions":"e1 opens the
+        privacy settings."}}}'</span></pre></div>
+      </div>
+    </div>
+    <details class="train reveal">
+      <summary>🛠 Train your own — the whole assembly line <span class="car">▾</span></summary>
+      <div class="train-body">
+        <p style="margin:6px 0 0;color:var(--dim);font-size:14px">Three entry points take you from raw pages to a served model.
+           Or run <code style="color:#9cc3ff">scripts/run_web_pipeline.sh</code> for all of it in one shot.</p>
+        <div class="codebox"><button class="copybtn" data-code="python -m decisionforge.build_web">Copy</button>
+<pre><span class="cm"># 1 · Mind2Web → Jev-contract decision records, website-disjoint splits</span>
+python -m decisionforge.build_web</pre></div>
+        <div class="codebox"><button class="copybtn" data-code="python -m decisionforge.synthesize">Copy</button>
+<pre><span class="cm"># 2 · complete missing decision labels — streaming, resumable cache</span>
+python -m decisionforge.synthesize</pre></div>
+        <div class="codebox"><button class="copybtn" data-code="python -m decisionforge.train">Copy</button>
+<pre><span class="cm"># 3 · CE + Brier on complete candidate sets, cosine LR, temperature calibration</span>
+python -m decisionforge.train</pre></div>
+        <div class="rlcd-note">
+          <b>Preliminary RLCD path</b>
+          <span>Starting from the supervised 0.8B checkpoint, DecisionForge updates complete candidate distributions with
+            task utility + multiclass Brier reward + reference-policy KL. Grouped sampling uses a within-group reward
+            baseline; browser hard-negative views keep every gold action and add confusable candidates only to training.
+            The plain run moved choice top-1 from 57.87% to 58.75% on test and 63.73% to 64.25% OOD; one hard-negative
+            view reached 64.77% OOD. The general supervised checkpoint remains the release default because ordered-score
+            quality trades off in this first sweep. <a href="https://github.com/DevDesai444/DecisionForge/blob/main/docs/RLCD_RESULTS.md" target="_blank" rel="noopener">Results and method ↗</a></span>
+        </div>
+        <div class="costline">⚡ Recorded v1 recipe: 1,200 steps on one RTX 4080 SUPER. Reproduction time and cost depend on hardware and label-provider availability.</div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>DecisionForge</h4>
+        <ul>
+          <li><a href="compare.html">score table — DecisionForge vs Jev-1.13</a></li>
+          <li><a href="decisions.html">side-by-side decisions</a></li>
+          <li><a href="training_curves.html">training dashboard</a></li>
+          <li><a href="#demo">live browser demo — calls /v1/systemone</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <ul>
+          <li><a href="https://huggingface.co/AndeyTait/DecisionForge-0.8B" target="_blank" rel="noopener">Hugging Face · weights</a></li>
+          <li><a href="https://wandb.ai/760243703-renmin-university-of-china/decisionforge/runs/4bdfb291" target="_blank" rel="noopener">Weights &amp; Biases · 0.8B training process</a></li>
+          <li><a href="https://github.com/DevDesai444/DecisionForge" target="_blank" rel="noopener">GitHub · source</a></li>
+          <li><a href="https://docs.typesafe.ai" target="_blank" rel="noopener">Jev contract docs</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Data</h4>
+        <ul>
+          <li>Mind2Web — OSU NLP</li>
+          <li>axtree cleaning — LangAGI-Lab</li>
+        </ul>
+      </div>
+    </div>
+    <p class="foot-note">Thanks to the Mind2Web team (OSU NLP) and LangAGI-Lab for the annotations and processing that make
+       web-element decision training possible. The browser demo sends each recorded page state to the Jev-compatible
+       <code>/v1/systemone</code> endpoint when it is available, with saved results as the fallback.</p>
+  </div>
+</footer>
+
+<script>
+"use strict";
+/* ================= tiny helpers ================= */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* Preserve the complete replay. Responsive sizing follows width only, while
+   the shell height follows the full rendered stage so no candidates are cut. */
+let demoScale = 1;
+function fitDemo() {
+  const browser = $("#demo-browser"), stage = $("#browser-stage");
+  if (!browser || !stage) return;
+  const naturalWidth = 1180;
+  const contentHeight = stage.scrollHeight;
+  demoScale = Math.min(1, browser.clientWidth / naturalWidth);
+  stage.style.setProperty("--demo-scale", demoScale.toFixed(4));
+  stage.style.marginLeft = Math.max(0, (browser.clientWidth - naturalWidth * demoScale) / 2) + "px";
+  browser.style.height = Math.ceil(contentHeight * demoScale) + "px";
+}
+window.addEventListener("resize", fitDemo, { passive: true });
+if ("ResizeObserver" in window) {
+  const demoShell = $("#demo-browser");
+  if (demoShell) new ResizeObserver(fitDemo).observe(demoShell);
+}
+
+/* ================= reveal on scroll ================= */
+const revealIO = new IntersectionObserver(es => {
+  es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); revealIO.unobserve(e.target); } });
+}, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+$$(".reveal").forEach(el => revealIO.observe(el));
+
+/* ================= nav active state ================= */
+const secIO = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (e.isIntersecting) {
+      $$(".navlinks a").forEach(a => a.classList.toggle("on", a.dataset.sec === e.target.id));
+    }
+  });
+}, { rootMargin: "-38% 0px -55% 0px" });
+["demo", "speed", "results", "architecture", "tutorial"].forEach(id => { const el = document.getElementById(id); if (el) secIO.observe(el); });
+
+/* ================= hero count-up ================= */
+function countUp(el, target, dec, dur) {
+  const t0 = performance.now();
+  (function frame(now) {
+    const t = Math.min(1, (now - t0) / (dur || 950));
+    const e = 1 - Math.pow(1 - t, 3);
+    el.textContent = (target * e).toFixed(dec);
+    if (t < 1) requestAnimationFrame(frame);
+  })(t0);
+}
+const countIO = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target;
+    countIO.unobserve(el);
+    if (REDUCED) { el.textContent = (+el.dataset.count).toFixed(+el.dataset.dec); return; }
+    countUp(el, +el.dataset.count, +el.dataset.dec, 950 + Math.random() * 350);
+  });
+}, { threshold: 0.5 });
+$$("[data-count]").forEach(el => countIO.observe(el));
+
+/* ================= speed bars ================= */
+const speedIO = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (!e.isIntersecting) return;
+    speedIO.unobserve(e.target);
+    $$(".bigfill", e.target).forEach((f, i) => setTimeout(() => { f.style.width = f.dataset.w; }, REDUCED ? 0 : 120 + i * 220));
+    $$(".ms", e.target).forEach(m => {
+      const target = +m.dataset.ms, t0 = performance.now();
+      (function fr(now) {
+        const t = Math.min(1, (now - t0) / 1000), ease = 1 - Math.pow(1 - t, 3);
+        m.textContent = Math.round(target * ease).toLocaleString("en-US") + " ms";
+        if (t < 1) requestAnimationFrame(fr);
+      })(t0);
+    });
+  });
+}, { threshold: 0.35 });
+const speedSec = document.getElementById("speed");
+if (speedSec) speedIO.observe(speedSec);
+
+/* ================= copy buttons ================= */
+document.addEventListener("click", async ev => {
+  const b = ev.target.closest(".copybtn");
+  if (!b) return;
+  const code = b.dataset.code || "";
+  try { await navigator.clipboard.writeText(code); }
+  catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = code; ta.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (_) {}
+    ta.remove();
+  }
+  const old = b.textContent;
+  b.textContent = "✓ Copied"; b.classList.add("done");
+  setTimeout(() => { b.textContent = old; b.classList.remove("done"); }, 1600);
+});
+
+/* ================= cursor engine (adapted from web/cursor.js) ================= */
+function makeCursor(container, el, cls, home) {
+  let cx = null, cy = null, token = 0;
+  function place(x, y) { el.style.transform = `translate(${x}px,${y}px)`; }
+  function reset() { cx = null; cy = null; place(-100, -100); }
+  async function glide(x, y, dur) {
+    if (REDUCED) { cx = x; cy = y; place(x, y); return; }
+    if (cx === null) { cx = home ? home[0] : 20; cy = home ? home[1] : 14; }
+    const my = ++token, x0 = cx, y0 = cy;
+    const mx = (x0 + x) / 2, dx = x - x0, dy = y - y0;
+    const len = Math.hypot(dx, dy) || 1, arc = Math.min(24, 12 + len * 0.06);
+    const side = (Math.round(mx / 17) + Math.round((y0 + y) / 2 / 11)) % 2 ? 1 : -1;
+    const bx = mx - dy / len * arc * side, by = my + dx / len * arc * side;
+    const t0 = performance.now(), d = Math.max(180, (dur || 680) / speed);
+    await new Promise(res => {
+      (function step(now) {
+        if (my !== token) return res();
+        const t = Math.min(1, (now - t0) / d);
+        const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const u = 1 - e;
+        place(u * u * x0 + 2 * u * e * bx + e * e * x, u * u * y0 + 2 * u * e * by + e * e * y);
+        t < 1 ? requestAnimationFrame(step) : res();
+      })(t0);
+    });
+    if (my === token) { cx = x; cy = y; }
+  }
+  function centerOf(node) {
+    const r = node.getBoundingClientRect(), c = container.getBoundingClientRect();
+    return { x: (r.left - c.left + r.width * 0.72) / demoScale,
+      y: (r.top - c.top + Math.min(r.height * 0.4, 18 * demoScale)) / demoScale };
+  }
+  function press() {
+    el.classList.add("pressed");
+    setTimeout(() => el.classList.remove("pressed"), 180);
+    if (cx === null) return;
+    const rp = document.createElement("span");
+    rp.className = "ripple " + cls; rp.style.left = cx + "px"; rp.style.top = cy + "px";
+    container.appendChild(rp);
+    setTimeout(() => rp.remove(), 700);
+  }
+  async function glideTo(node, dur) {
+    if (!node) return;
+    const p = centerOf(node);
+    await glide(p.x, p.y, dur);
+    press();
+  }
+  return { reset, glideTo, cls };
+}
+
+/* ================= demo data ================= */
+const ARMS = [
+  { key: "decisionforge", label: "DecisionForge", cls: "jf", home: [18, 12], dur: 620 },
+  { key: "jev", label: "Jev-1.13", cls: "rj", home: [46, 30], dur: 700 },
+];
+let DATA = null, split = "test", idx = 0;
+let tally = { decisionforge: 0, jev: 0, total: 0 };
+let playing = true, speed = 1, chainToken = 0;
+const API_PARAMS = new URLSearchParams(location.search);
+const LIVE_API = API_PARAMS.get("api") || "http://127.0.0.1:8123/v1/systemone";
+let liveRetryAt = 0;
+const site = $("#site");
+const cursors = {
+  decisionforge: makeCursor(site, $("#cursor-jf"), "jf", ARMS[0].home),
+  jev: makeCursor(site, $("#cursor-rj"), "rj", ARMS[1].home),
+};
+
+function tagOf(c) { return (c.text.trim().split(/\s+/)[0] || "div").toLowerCase(); }
+function attrOf(c, name) {
+  const m = c.text.match(new RegExp("\\b" + name + "=(\\S+)"));
+  return m ? m[1].replace(/_/g, " ").slice(0, 46) : null;
+}
+const TAG_LABEL = { li: "Menu item", nav: "Nav", div: "Section", span: "Label", td: "Fare cell",
+  tr: "Fare row", tbody: "Fare table", svg: "Icon", img: "Photo", p: "Text", h3: "Heading",
+  ul: "List", form: "Form", label: "Field label", section: "Panel", input: "Input",
+  a: "Link", button: "Button" };
+function friendly(c) {
+  return attrOf(c, "aria_label") || attrOf(c, "title") || attrOf(c, "alt") ||
+    attrOf(c, "id") || attrOf(c, "name") || TAG_LABEL[tagOf(c)] || tagOf(c);
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch])); }
+
+/* assign candidates to visual slots on the mock page */
+function layout(sample) {
+  const cands = sample.candidates;
+  const L = { nav: [], heroImg: null, heroCta: null, inputs: [], searchBtn: null, rows: [], cards: [] };
+  const rest = [];
+  for (const c of cands) {
+    const t = tagOf(c);
+    if (t === "li" && L.nav.length < 3) L.nav.push(c);
+    else if (t === "img" && !L.heroImg) L.heroImg = c;
+    else if (t === "input" && L.inputs.length < 2) L.inputs.push(c);
+    else if ((t === "button" || t === "a") && !L.heroCta) L.heroCta = c;
+    else if ((t === "td" || t === "tr" || t === "tbody") && L.rows.length < 3) L.rows.push(c);
+    else rest.push(c);
+  }
+  L.cards = rest;
+  return L;
+}
+const FARES = [
+  ["San Juan, Puerto Rico", "Nov 12 – 19", "$214"],
+  ["Cancún, Mexico", "Nov 9 – 16", "$248"],
+  ["Phoenix, Arizona", "Nov 15 – 22", "$187"],
+];
+const CARD_TEXT = [
+  "Fresh travel intel and fare alerts for your route.",
+  "Earn 2× miles on every booked seat this fall.",
+  ["Nonstop only", "1 carry-on included", "Free 24h hold"],
+  "Traveler favorite — rated by 12k flyers this month.",
+];
+
+function slotHTML(c, cls, inner) {
+  return `<span class="candslot ${cls || ""}" data-cid="${c.id}">${inner}<span class="tagid">${c.id}</span></span>`;
+}
+
+function renderSite(sample) {
+  const L = layout(sample);
+  const gold = new Set(sample.gold);
+
+  /* nav */
+  const nav = $("#fnav");
+  const navItems = ["Deals", ...L.nav.map(c => friendly(c) || "Menu"), "Check-in"];
+  nav.innerHTML = navItems.map(t => `<li>${esc(t)}</li>`).join("");
+  L.nav.forEach((c, i) => {
+    const li = nav.children[i + 1];
+    li.classList.add("candslot");
+    li.dataset.cid = c.id;
+    li.innerHTML = `${esc(friendly(c) || "Menu")}<span class="tagid">${c.id}</span>`;
+  });
+
+  /* hero: cta + optional img */
+  const hr = $("#hero-right");
+  hr.innerHTML = "";
+  if (L.heroImg) {
+    const d = document.createElement("span");
+    d.className = "heroimg candslot"; d.dataset.cid = L.heroImg.id;
+    d.innerHTML = `🌴<span class="tagid">${L.heroImg.id}</span>`;
+    hr.appendChild(d);
+  } else {
+    const d = document.createElement("span"); d.className = "heroimg"; d.textContent = "🌴"; hr.appendChild(d);
+  }
+  if (L.heroCta) {
+    const b = document.createElement("button");
+    b.className = "herobtn candslot"; b.dataset.cid = L.heroCta.id;
+    b.innerHTML = `${esc(attrOf(L.heroCta, "aria_label") || "View fall deals")}<span class="tagid">${L.heroCta.id}</span>`;
+    hr.appendChild(b);
+  } else {
+    hr.insertAdjacentHTML("beforeend", `<button class="herobtn">View fall deals</button>`);
+  }
+
+  /* form inputs + search button */
+  const form = $("#siteform");
+  form.querySelectorAll("[data-cid],.dyn").forEach(n => n.remove());
+  const frag = [];
+  L.inputs.forEach(c => {
+    frag.push(`<span class="field dyn">${slotHTML(c, "", `<label>${esc(friendly(c) || "Field")}</label><input placeholder="${esc(friendly(c) || "Enter…")}" readonly>`)}</span>`);
+  });
+  if (L.heroCta === null) { /* keep a search button regardless */ }
+  frag.push(`<span class="dyn" id="searchslot"></span>`);
+  form.insertAdjacentHTML("beforeend", frag.join(""));
+  const sslot = $("#searchslot");
+  const btnCand = sample.candidates.find(c => tagOf(c) === "button" && c !== L.heroCta);
+  if (btnCand) {
+    sslot.outerHTML = slotHTML(btnCand, "", `<button class="searchbtn">${esc(attrOf(btnCand, "aria_label") || "Search fares")}</button>`);
+  } else {
+    sslot.outerHTML = `<span class="dyn"><button class="searchbtn">Search fares</button></span>`;
+  }
+
+  /* fare rows */
+  const tb = $("#farebody");
+  const rows = [];
+  for (let i = 0; i < 3; i++) {
+    const f = FARES[i], c = L.rows[i];
+    rows.push(`<tr class="${c ? "candslot" : ""}" ${c ? `data-cid="${c.id}"` : ""}>
+      <td style="position:relative">${esc(c ? (friendly(c) || f[0]) : f[0])}${c ? `<span class="tagid">${c.id}</span>` : ""}</td>
+      <td>${f[1]}</td><td class="price">${f[2]}</td></tr>`);
+  }
+  tb.innerHTML = rows.join("");
+
+  /* cards for the rest */
+  const grid = $("#cardgrid");
+  grid.innerHTML = L.cards.map((c, i) => {
+    const v = i % 4, label = `${c.id} · ${TAG_LABEL[tagOf(c)] || tagOf(c)}`;
+    let inner;
+    if (v === 2) inner = `<h6>${esc(label)}</h6><p class="stars">★★★★★</p><p>${esc(CARD_TEXT[2][0])} · ${esc(CARD_TEXT[2][1])}</p>`;
+    else inner = `<h6>${esc(label)}</h6><p>${esc(CARD_TEXT[v])}</p>`;
+    return `<div class="minicard v${v} ${"candslot"}" data-cid="${c.id}">${inner}<span class="tagid">${c.id}</span></div>`;
+  }).join("");
+
+  /* gold rings */
+  gold.forEach(id => {
+    const el = site.querySelector(`[data-cid="${id}"]`);
+    if (el) el.classList.add("gold");
+  });
+  fitDemo();
+}
+
+function currentSample() {
+  const g = split === "test" ? idx : 24 + idx;
+  return g < 24 ? DATA.samples.test[g] : DATA.samples.ood[g - 24];
+}
+
+async function applyLiveDecision(sample) {
+  if (Date.now() < liveRetryAt) return;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  const criteria = Object.fromEntries(sample.candidates.map(c => [c.id, c.text]));
+  const state = `Task: ${sample.task}. Available page elements: ` +
+    sample.candidates.map(c => `[${c.id}] ${c.text}`).join("; ");
+  const started = performance.now();
+  try {
+    const res = await fetch(LIVE_API, {method:"POST", signal:controller.signal,
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({state, questions:{next:{type:"choice",
+        instructions:sample.task, criteria}}})});
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json(), answer = data.answers.next;
+    sample.probabilities.decisionforge = answer.probabilities;
+    sample.live_latency_ms = Number(data.latency_ms || performance.now() - started);
+    $("#api-status").textContent = "live 0.8B API";
+    $("#api-status").style.color = "var(--green)";
+  } catch (error) {
+    liveRetryAt = Date.now() + 10000;
+    $("#api-status").textContent = "replay · API offline";
+    $("#api-status").style.color = "";
+  } finally { clearTimeout(timeout); }
+}
+
+function renderVerdicts(sample) {
+  const am = argmaxOf(sample);
+  $("#d-verdicts").innerHTML = ARMS.map(a => {
+    const hit = sample.gold.includes(am[a.key]);
+    const confidence = (sample.probabilities[a.key][am[a.key]] * 100).toFixed(1);
+    return `<span class="vchip ${hit ? "win" : "lose"}">${a.label} · ${am[a.key]} · ${confidence}% ${hit ? "✓ gold" : "✗"}</span>`;
+  }).join("");
+  return am;
+}
+
+/* one verdict bubble per arm, pinned to its click point */
+function showCallout(a, sample, chosenId, targetEl, above) {
+  const p = sample.probabilities[a.key][chosenId] || 0;
+  const hit = sample.gold.includes(chosenId);
+  const el = document.createElement("div");
+  el.className = "callout " + a.cls; el.id = "callout-" + a.cls;
+  el.innerHTML = `<div class="cl-row ${hit ? "hit" : "miss"}"><b>${a.label}</b>` +
+    `<span class="st">${hit ? "gold hit" : "missed"}</span>` +
+    `<span class="pv">${(p * 100).toFixed(1)}%</span><span class="mk">${hit ? "✓" : "✗"}</span></div>`;
+  site.appendChild(el);
+  const er = targetEl.getBoundingClientRect(), sr = site.getBoundingClientRect();
+  const w = el.offsetWidth || 170, h = el.offsetHeight || 34;
+  let x = (er.left - sr.left) / demoScale + Math.min(er.width * 0.55 / demoScale, er.width / demoScale - w * 0.4);
+  let y = above ? (er.top - sr.top) / demoScale - h - 12 : (er.top - sr.top + er.height) / demoScale + 10;
+  x = Math.max(8, Math.min(x, sr.width - w - 8));
+  y = Math.max(6, Math.min(y, sr.height - h - 6));
+  el.style.left = x + "px"; el.style.top = y + "px";
+}
+function hideCallouts(instant) {
+  ["#callout-jf", "#callout-rj"].forEach(sel => {
+    const c = $(sel);
+    if (!c) return;
+    if (instant) { c.remove(); return; }
+    c.classList.add("out");
+    setTimeout(() => c.remove(), 240);
+  });
+}
+
+/* per-step inference latency, visualised in the address-bar chip
+   DecisionForge: real measured per-step ms from the replay · Jev-1.13: real p50 ± network jitter */
+const MEASURED_MS = [357,103,78,89,99,101,87,116,141,70,85,115,85,86,84,78,84,85,90,70,89,83,85,103,76,88,89,70,93,89,131,79,85,72,101,68,89,87,80,75,84,111,70,76,68,75,71,80];
+const JEV_MS = [1041,1078,1103,1066,1092,1085,1054,1099,1071,1108,1063,1076];
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function msFor(a, g, sample) {
+  return a.key === "decisionforge" && sample.live_latency_ms != null
+    ? sample.live_latency_ms
+    : (a.key === "decisionforge" ? MEASURED_MS[g % MEASURED_MS.length] : JEV_MS[g % JEV_MS.length]);
+}
+async function latencyFlash(a, ms, g) {
+  const chip = $(a.key === "decisionforge" ? "#li-jf" : "#li-rj");
+  const fill = chip.querySelector(".lifill"), msEl = chip.querySelector(".lims");
+  const dur = REDUCED ? 60 : (a.key === "decisionforge" ? clamp(ms * 0.75, 180, 300) : clamp(ms * 0.46, 400, 560)) / speed;
+  fill.style.transition = "none"; fill.style.width = "0%";
+  void fill.offsetWidth;
+  chip.classList.add("flash");
+  fill.style.transition = `width ${dur}ms linear`;
+  fill.style.width = "100%";
+  const t0 = performance.now();
+  (function fr(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    msEl.textContent = Math.round(ms * t) + " ms";
+    if (t < 1 && !REDUCED) requestAnimationFrame(fr); else msEl.textContent = ms.toLocaleString("en-US") + " ms";
+  })(t0);
+  await sleep(dur);
+  chip.classList.remove("flash");
+}
+
+/* both cursors play their own pick on the same page:
+   indicator ⚡ → glide → click ripple → verdict, DecisionForge first, Jev-1.13 right behind */
+async function stepPlay(sample, argmax, g, { glide = true } = {}) {
+  $$(".candslot", site).forEach(n => n.classList.remove("aim-jf", "aim-rj"));
+  hideCallouts(true);
+  const targets = ARMS.map(a => ({
+    a, ms: msFor(a, g, sample),
+    el: argmax[a.key] ? site.querySelector(`[data-cid="${argmax[a.key]}"]`) : null,
+  }));
+  if (glide && !REDUCED) {
+    const [t0, t1] = targets;
+    if (t0.el) {
+      t0.el.classList.add("aim-" + t0.a.cls);
+      const fl = document.createElement("span"); fl.className = "aimflash " + t0.a.cls;
+      t0.el.appendChild(fl); setTimeout(() => fl.remove(), 950);
+    }
+    /* the two latency chips fill together; the faster model's cursor leaves first */
+    const ind2 = latencyFlash(t1.a, t1.ms, g);
+    await latencyFlash(t0.a, t0.ms, g);
+    await cursors.decisionforge.glideTo(t0.el, 400);
+    if (t0.el) showCallout(t0.a, sample, argmax[t0.a.key], t0.el, false);
+    await ind2;
+    if (t1.el) {
+      t1.el.classList.add("aim-" + t1.a.cls);
+      const fl2 = document.createElement("span"); fl2.className = "aimflash " + t1.a.cls;
+      t1.el.appendChild(fl2); setTimeout(() => fl2.remove(), 950);
+      await cursors.jev.glideTo(t1.el, 430);
+      showCallout(t1.a, sample, argmax[t1.a.key], t1.el, true);
+    }
+  } else {
+    for (const t of targets) {
+      if (!t.el) continue;
+      t.el.classList.add("aim-" + t.a.cls);
+      showCallout(t.a, sample, argmax[t.a.key], t.el, t.a.cls === "rj");
+    }
+  }
+}
+
+async function showSample(g) {
+  split = g < 24 ? "test" : "ood";
+  idx = g < 24 ? g : g - 24;
+  const s = currentSample();
+
+  $("#d-who").textContent = `${s.website} · ${s.split} · ${s.question_type}`;
+  $("#d-task").textContent = s.task;
+  $("#site-task").textContent = s.task;
+  $("#auto-n").textContent = g + 1;
+  $("#auto-site").textContent = s.website;
+  hideCallouts(true);
+
+  if (REDUCED) {
+    cursors.decisionforge.reset(); cursors.jev.reset();
+    renderSite(s);
+    await applyLiveDecision(s);
+    const am = renderVerdicts(s);
+    await stepPlay(s, am, g, { glide: false });
+    return;
+  }
+
+  /* page switch: old page slides out, new page slides in (~450ms) */
+  site.classList.add("leaving");
+  cursors.decisionforge.reset(); cursors.jev.reset();
+  await sleep(210 / speed);
+  renderSite(s);
+  await applyLiveDecision(s);
+  const am = renderVerdicts(s);
+  site.classList.remove("leaving");
+  site.classList.add("entering");
+  void site.offsetWidth; /* reflow so the enter transition plays */
+  site.classList.add("in");
+  await sleep(240 / speed);
+  site.classList.remove("entering", "in");
+
+  /* page is up — decide almost instantly, then strike */
+  await sleep(60 / speed);
+  await stepPlay(s, am, g, { glide: true });
+}
+
+function computeTally() {
+  tally = { decisionforge: 0, jev: 0, total: 0 };
+  for (const key of ["test", "ood"]) {
+    for (const s of DATA.samples[key]) {
+      tally.total++;
+      const am = argmaxOf(s);
+      for (const a of ARMS) if (s.gold.includes(am[a.key])) tally[a.key]++;
+    }
+  }
+  $("#tally").innerHTML =
+    `<span class="tjf">DecisionForge <b>${tally.decisionforge}/${tally.total}</b></span>` +
+    `<span class="sep">·</span><span class="trj">Jev-1.13 <b>${tally.jev}/${tally.total}</b></span>` +
+    `<span class="sep">·</span><span>gold hits across 48 samples</span>`;
+}
+
+/* autoplay loop */
+function argmaxOf(sample) {
+  const out = {};
+  for (const a of ARMS) {
+    const d = sample.probabilities[a.key];
+    out[a.key] = Object.keys(d).reduce((b, k) => (d[k] > d[b] ? k : b), Object.keys(d)[0]);
+  }
+  return out;
+}
+const sleepScaled = ms => sleep(ms / speed);
+const curG = () => (split === "test" ? idx : 24 + idx);
+
+async function chain() {
+  const my = ++chainToken;
+  let g = curG();
+  while (my === chainToken && playing) {
+    await showSample(g);
+    if (my !== chainToken || !playing) return;
+    await sleepScaled(1500);           /* time to read the verdicts — the strike stays fast, the loop breathes */
+    if (my !== chainToken || !playing) return;
+    g = (g + 1) % 48;
+  }
+}
+$("#playpause").onclick = () => {
+  playing = !playing;
+  $("#playpause").textContent = playing ? "⏸" : "▶";
+  $("#playpause").title = playing ? "pause" : "play";
+  if (playing) chain();
+};
+$$(".chip.spd").forEach(ch => ch.onclick = () => {
+  speed = +ch.dataset.spd;
+  $$(".chip.spd").forEach(c => c.classList.toggle("on", c === ch));
+});
+
+/* boot */
+(async function boot() {
+  try { DATA = await (await fetch("demo_data.json")).json(); }
+  catch (e) { $("#d-task").textContent = "failed to load demo_data.json — serve this directory over HTTP."; return; }
+  computeTally();
+  fitDemo();
+  /* land on the first travel-ish sample so the mock site matches the task */
+  const first = DATA.samples.test.findIndex(s => /united|delta|carmax|agoda/.test(s.website));
+  split = "test";
+  idx = first >= 0 ? first : 0;
+  chain().catch(() => {});
+})();
+</script>
+</body>
+</html>
