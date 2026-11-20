@@ -60,6 +60,15 @@ code,pre{font-family:var(--mono)}
 .navlinks a.hl{color:var(--brand2)}
 .nav-extra{margin-left:auto;display:flex;gap:14px;font-size:13px;white-space:nowrap}
 .nav-extra a{color:var(--faint)} .nav-extra a:hover{color:var(--brand2)}
+.gh-stats{display:inline-flex;align-items:center;gap:0;border:1px solid var(--line2);border-radius:8px;
+  overflow:hidden;font-size:12px;font-weight:700;white-space:nowrap;margin-left:4px;
+  background:linear-gradient(180deg,rgba(22,29,43,.85),rgba(13,18,25,.9))}
+.gh-stat{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;font-variant-numeric:tabular-nums;
+  color:#cfd9e6;letter-spacing:.01em}
+.gh-stat svg{width:12px;height:12px;flex-shrink:0}
+.gh-stat.stars svg{fill:#f0b429}
+.gh-stat.forks svg{fill:var(--dim)}
+.gh-stat+.gh-stat{border-left:1px solid var(--line2)}
 
 /* ================= hero ================= */
 .hero{padding:34px 0 28px;position:relative}
@@ -463,6 +472,10 @@ footer a{color:#a9bdd8}
       <a class="hl" href="decisions.html">Decisions</a>
       <a class="hl" href="training_curves.html">Curves</a>
       <a href="https://huggingface.co/AndeyTait/DecisionForge-0.8B" target="_blank" rel="noopener">Weights ↗</a>
+      <span class="gh-stats">
+        <span class="gh-stat stars"><svg viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"/></svg>165</span>
+        <span class="gh-stat forks"><svg viewBox="0 0 16 16"><path d="M5 3.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm0 2.122a2.25 2.25 0 1 0-1.5 0v.878A2.25 2.25 0 0 0 5.75 8.5h1.5v2.128a2.251 2.251 0 1 0 1.5 0V8.5h1.5a2.25 2.25 0 0 0 2.25-2.25v-.878a2.25 2.25 0 1 0-1.5 0v.878a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 5 6.25v-.878Zm3.75 7.378a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm3-8.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"/></svg>15</span>
+      </span>
     </div>
   </div>
 </nav>
